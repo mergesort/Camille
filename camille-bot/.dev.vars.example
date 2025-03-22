@@ -1,0 +1,4 @@
+API_HOST=your_api_host
+SLACK_API_TOKEN=your_slack_token
+SLACK_COMMUNITY_ID=your_community_id
+SLACK_SIGNING_SECRET=your_signing_secret

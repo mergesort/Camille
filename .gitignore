@@ -1,0 +1,62 @@
+# Node modules
+node_modules/
+
+# Build outputs
+*.log
+dist/
+build/
+
+# TypeScript build artifacts
+*.tsbuildinfo
+*.d.ts
+
+# Cloudflare Workers specific files
+.wrangler/
+.wrangler-config.json
+.wrangler.toml.backup
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Editor and IDE files
+.cursor/
+.cursorignore
+.cursorindexingignore
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux system files
+*.out
+*.pid
+*.seed
+*.log
+*.lock
+
+# Tests and coverage reports
+coverage/
+*.lcov
+
+# Compiled output and cache
+.cache/
+*.bak
+*.orig
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package manager lock files (if you are using npm, yarn, or pnpm)
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+camille-bot/.dev.vars
+camille-bot/wrangler.toml
+camille-bot/wrangler.dev.toml

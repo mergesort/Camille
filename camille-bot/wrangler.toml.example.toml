@@ -1,0 +1,17 @@
+name = ""
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+API_HOST = "your_api_host"
+SLACK_COMMUNITY_ID = "your_community_id"
+
+[[kv_namespaces]]
+binding = "kv"
+id = "1234"
+preview_id = "5678"
+
+[observability]
+enabled = true
+head_sampling_rate = 0.1 # 10% of requests are logged
