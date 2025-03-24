@@ -61,6 +61,11 @@ function formatHelpMessage(): string {
 • \`@camille karma @username\` - Check a user's karma points
 • \`@camille leaderboard\` - View the karma leaderboard
 
+*Autoresponders*
+• When you say "hello" or similar greetings to @camille, she'll respond with a friendly greeting and wave
+• When someone uses "hey guys" or similar phrases, Camille will kindly suggest more inclusive alternatives
+• When someone shares a Twitter/X link, Camille will provide a version that doesn't require an account
+
 *Help*
 • \`@camille help\` - Show this help message
 

@@ -11,6 +11,9 @@ import { verifySlackSignature } from './utils';
 import { processKarmaMessage } from '../../karma';
 import { processMessageLinks, processMessageDeletion } from '../../link-tracking';
 import { processHelpCommand } from '../../help';
+import { processGreeting } from '../../greetings';
+import { processMessageForAutoResponse } from '../../auto-responder';
+import { processXLinks } from '../../x-transformer';
 
 export interface SlackEventHandlerOptions {
   logger: Logger;
@@ -131,6 +134,37 @@ async function handleMessageEvent(
       return;
     }
     
+    // Process for X/Twitter links
+    const xLinksResult = await processXLinks(
+      event.text,
+      logger
+    );
+    
+    // If there are X/Twitter links, transform and reply with xcancel links
+    if (xLinksResult.hasXLinks && xLinksResult.transformedLinks.length > 0) {
+      // Create a message with the transformed links
+      let responseText = '';
+      
+      if (xLinksResult.transformedLinks.length === 1) {
+        responseText = `Here's a link that doesn't require a Twitter/X account: ${xLinksResult.transformedLinks[0]}`;
+      } else {
+        responseText = `Here are links that don't require a Twitter/X account:\n${xLinksResult.transformedLinks.join('\n')}`;
+      }
+      
+      await sendSlackMessage({
+        channel: event.channel,
+        text: responseText,
+        thread_ts: event.thread_ts || event.ts,
+        token: config.slackApiToken,
+        unfurl_links: false // Prevent links from unfurling
+      });
+      
+      logger.debug('Sent xcancel links response', {
+        channel: event.channel,
+        responsePreview: responseText.substring(0, 50)
+      });
+    }
+    
     // Process for help command
     const helpResult = await processHelpCommand(
       event.text,
@@ -155,6 +189,73 @@ async function handleMessageEvent(
       
       // If help was processed, don't process other commands
       return;
+    }
+    
+    // Process for greetings
+    const greetingResult = await processGreeting(
+      event.text,
+      event.user,
+      logger,
+      config
+    );
+    
+    // If it's a greeting, add a wave reaction
+    if (greetingResult.isGreeting && greetingResult.shouldAddReaction) {
+      await addSlackReaction({
+        channel: event.channel,
+        timestamp: event.ts,
+        reaction: 'wave',
+        token: config.slackApiToken
+      });
+      
+      logger.debug('Added wave reaction to greeting', {
+        channel: event.channel,
+        user: event.user
+      });
+    }
+    
+    // If there's a greeting response, send it back to the channel
+    if (greetingResult.response) {
+      await sendSlackMessage({
+        channel: event.channel,
+        text: greetingResult.response,
+        thread_ts: event.thread_ts || event.ts,
+        token: config.slackApiToken
+      });
+      
+      logger.debug('Sent greeting response', {
+        channel: event.channel,
+        responsePreview: greetingResult.response.substring(0, 50)
+      });
+      
+      // If greeting was processed, don't process other commands
+      return;
+    }
+    
+    // Process for auto-responder
+    const autoResponderResult = await processMessageForAutoResponse(
+      event.text,
+      event.user,
+      logger,
+      config
+    );
+    
+    // If there's an auto-response, send it back as a thread
+    if (autoResponderResult.shouldRespond && autoResponderResult.response) {
+      await sendSlackMessage({
+        channel: event.channel,
+        text: autoResponderResult.response,
+        thread_ts: event.thread_ts || event.ts,
+        token: config.slackApiToken,
+        unfurl_links: false  // Prevent links from unfurling
+      });
+      
+      logger.debug('Sent auto-response', {
+        channel: event.channel,
+        responsePreview: autoResponderResult.response.substring(0, 50)
+      });
+      
+      // Continue processing other features even after auto-response
     }
     
     // Process for karma operations
@@ -283,13 +384,15 @@ async function sendSlackMessage(options: {
   text: string;
   thread_ts?: string;
   token: string;
+  unfurl_links?: boolean;
 }): Promise<void> {
-  const { channel, text, thread_ts, token } = options;
+  const { channel, text, thread_ts, token, unfurl_links = true } = options;
   
   const payload = {
     channel,
     text,
-    ...(thread_ts ? { thread_ts } : {})
+    ...(thread_ts ? { thread_ts } : {}),
+    unfurl_links
   };
   
   const response = await fetch('https://slack.com/api/chat.postMessage', {
@@ -337,4 +440,4 @@ async function addSlackReaction(options: {
     const errorData = await response.text();
     throw new Error(`Failed to add reaction: ${errorData}`);
   }
-} 
+}

@@ -98,7 +98,9 @@
 
 ## Next Steps
 
-1. Implement kind greetings feature
-2. Implement auto-moderation feature
-3. Add authentication and authorization for admin features
-4. Set up monitoring and alerts
+1. Fix karma leaderboard issue - TypeError when using findIndex on non-array data. (This indicates that the code is trying to use the array method findIndex() on a variable that isn't an array. It's likely the leaderboard data is being stored or retrieved in an unexpected format (possibly as an object or string instead of an array).
+These errors are being caught and handled properly with try/catch blocks, which is why they don't cause test failures.)
+2. Implement kind greetings feature
+3. Implement auto-moderation feature
+4. Add authentication and authorization for admin features
+5. Set up monitoring and alerts
