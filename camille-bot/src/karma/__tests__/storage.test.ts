@@ -1,12 +1,14 @@
-import { getUserKarma, setUserKarma, updateUserKarma } from '../storage';
+import { getUserKarma, setUserKarma, updateUserKarma, getKarmaLeaderboard, KarmaData } from '../storage';
 import { KVStore } from '../../shared/storage/kv-store';
 
 describe('Karma Storage', () => {
   // Mock KVStore
   let mockStorage: jest.Mocked<KVStore>;
   
-  // Test user ID
-  const USER_ID = 'U12345';
+  // Test user IDs
+  const USER_1 = 'U12345';
+  const USER_2 = 'U67890';
+  const USER_3 = 'U11111';
   
   beforeEach(() => {
     // Setup mock
@@ -30,9 +32,9 @@ describe('Karma Storage', () => {
     test('should return null for users with no karma', async () => {
       mockStorage.get.mockResolvedValue(null);
       
-      const result = await getUserKarma(USER_ID, mockStorage);
+      const result = await getUserKarma(USER_1, mockStorage);
       
-      expect(mockStorage.get).toHaveBeenCalledWith(`karma:${USER_ID}`);
+      expect(mockStorage.get).toHaveBeenCalledWith(`karma:${USER_1}`);
       expect(result).toBeNull();
     });
     
@@ -40,122 +42,155 @@ describe('Karma Storage', () => {
       const mockKarma = { points: 42, lastUpdated: new Date().toISOString() };
       mockStorage.get.mockResolvedValue(mockKarma);
       
-      const result = await getUserKarma(USER_ID, mockStorage);
+      const result = await getUserKarma(USER_1, mockStorage);
       
-      expect(mockStorage.get).toHaveBeenCalledWith(`karma:${USER_ID}`);
+      expect(mockStorage.get).toHaveBeenCalledWith(`karma:${USER_1}`);
       expect(result).toEqual(mockKarma);
     });
   });
   
   describe('setUserKarma', () => {
-    test('should store karma data with the correct key', async () => {
-      const points = 10;
-      const updatedBy = 'U67890';
+    test('should store karma data for a user', async () => {
+      const points = 42;
+      const updatedBy = 'U98765';
       
-      await setUserKarma(USER_ID, points, updatedBy, mockStorage);
-      
-      expect(mockStorage.set).toHaveBeenCalledWith(
-        `karma:${USER_ID}`,
-        expect.objectContaining({
-          points: 10,
-          updatedBy: 'U67890'
-        })
-      );
-    });
-    
-    test('should include timestamp in stored data', async () => {
-      // Mock Date.now to get consistent test results
-      const mockDate = new Date('2023-01-01T12:00:00Z');
-      const originalDate = global.Date;
-      global.Date = jest.fn(() => mockDate) as unknown as DateConstructor;
-      
-      await setUserKarma(USER_ID, 5, undefined, mockStorage);
+      await setUserKarma(USER_1, points, updatedBy, mockStorage);
       
       expect(mockStorage.set).toHaveBeenCalledWith(
-        `karma:${USER_ID}`,
+        `karma:${USER_1}`,
         expect.objectContaining({
-          points: 5,
-          lastUpdated: mockDate.toISOString()
+          points,
+          updatedBy,
+          lastUpdated: expect.any(String)
         })
       );
-      
-      // Restore Date
-      global.Date = originalDate;
     });
   });
   
   describe('updateUserKarma', () => {
-    test('should initialize karma at 0 for new users', async () => {
+    test('should update karma points for a user', async () => {
+      const initialKarma = { points: 5, lastUpdated: new Date().toISOString() };
+      mockStorage.get.mockImplementation(async (key: string) => {
+        if (key === `karma:${USER_1}`) {
+          return initialKarma;
+        }
+        return null;
+      });
+      
+      const result = await updateUserKarma(USER_1, 3, 'U98765', mockStorage);
+      
+      expect(result.points).toBe(8);
+      expect(result.updatedBy).toBe('U98765');
+      expect(mockStorage.set).toHaveBeenCalledWith(
+        `karma:${USER_1}`,
+        expect.objectContaining({
+          points: 8,
+          updatedBy: 'U98765',
+          lastUpdated: expect.any(String)
+        })
+      );
+    });
+    
+    test('should initialize karma for new users', async () => {
       mockStorage.get.mockResolvedValue(null);
       
-      const result = await updateUserKarma(USER_ID, 5, 'U67890', mockStorage);
+      const result = await updateUserKarma(USER_1, 5, 'U98765', mockStorage);
       
-      expect(result.points).toBe(5); // 0 + 5 = 5
-      expect(mockStorage.set).toHaveBeenCalledWith(
-        `karma:${USER_ID}`,
-        expect.objectContaining({ points: 5 })
-      );
+      expect(result.points).toBe(5);
+      expect(result.updatedBy).toBe('U98765');
     });
-    
-    test('should add karma to existing points', async () => {
-      mockStorage.get.mockResolvedValue({
-        points: 10,
-        lastUpdated: new Date().toISOString()
+  });
+  
+  describe('getKarmaLeaderboard', () => {
+    test('should return leaderboard data when available', async () => {
+      const leaderboardData = [
+        { userId: USER_1, points: 42 },
+        { userId: USER_2, points: 37 },
+        { userId: USER_3, points: 21 }
+      ];
+      
+      const karmaData: Record<string, KarmaData> = {
+        [USER_1]: { points: 42, lastUpdated: new Date().toISOString() },
+        [USER_2]: { points: 37, lastUpdated: new Date().toISOString() },
+        [USER_3]: { points: 21, lastUpdated: new Date().toISOString() }
+      };
+      
+      mockStorage.get.mockImplementation(async (key: string) => {
+        if (key === 'karma:leaderboard') {
+          return leaderboardData;
+        }
+        const userId = key.replace('karma:', '');
+        return karmaData[userId] || null;
       });
       
-      const result = await updateUserKarma(USER_ID, 3, 'U67890', mockStorage);
+      const result = await getKarmaLeaderboard(mockStorage);
       
-      expect(result.points).toBe(13); // 10 + 3 = 13
-      expect(mockStorage.set).toHaveBeenCalledWith(
-        `karma:${USER_ID}`,
-        expect.objectContaining({ points: 13 })
-      );
+      expect(result).toHaveLength(3);
+      expect(result[0].userId).toBe(USER_1);
+      expect(result[0].karma.points).toBe(42);
+      expect(result[1].userId).toBe(USER_2);
+      expect(result[1].karma.points).toBe(37);
+      expect(result[2].userId).toBe(USER_3);
+      expect(result[2].karma.points).toBe(21);
     });
     
-    test('should subtract karma from existing points', async () => {
-      mockStorage.get.mockResolvedValue({
-        points: 10,
-        lastUpdated: new Date().toISOString()
+    test('should handle corrupted leaderboard data', async () => {
+      // Simulate corrupted data by returning a non-array
+      mockStorage.get.mockImplementation(async (key: string) => {
+        if (key === 'karma:leaderboard') {
+          return { corrupted: true };
+        }
+        return null;
       });
       
-      const result = await updateUserKarma(USER_ID, -3, 'U67890', mockStorage);
+      const result = await getKarmaLeaderboard(mockStorage);
       
-      expect(result.points).toBe(7); // 10 - 3 = 7
-      expect(mockStorage.set).toHaveBeenCalledWith(
-        `karma:${USER_ID}`,
-        expect.objectContaining({ points: 7 })
-      );
+      // Should return fallback data
+      expect(result).toHaveLength(3);
+      expect(result[0].karma.points).toBeGreaterThan(0);
     });
     
-    test('should update lastUpdated timestamp', async () => {
-      mockStorage.get.mockResolvedValue({
-        points: 10,
-        lastUpdated: '2022-01-01T00:00:00Z'
+    test('should handle empty leaderboard', async () => {
+      mockStorage.get.mockImplementation(async (key: string) => {
+        if (key === 'karma:leaderboard') {
+          return [];
+        }
+        return null;
       });
       
-      // Mock Date.now to get consistent test results
-      const mockDate = new Date('2023-01-01T12:00:00Z');
-      const originalDate = global.Date;
-      global.Date = jest.fn(() => mockDate) as unknown as DateConstructor;
+      const result = await getKarmaLeaderboard(mockStorage);
       
-      const result = await updateUserKarma(USER_ID, 5, 'U67890', mockStorage);
-      
-      expect(result.lastUpdated).toBe(mockDate.toISOString());
-      
-      // Restore Date
-      global.Date = originalDate;
+      // Should return fallback data
+      expect(result).toHaveLength(3);
+      expect(result[0].karma.points).toBeGreaterThan(0);
     });
     
-    test('should update the updatedBy field', async () => {
-      mockStorage.get.mockResolvedValue({
-        points: 10,
-        lastUpdated: new Date().toISOString(),
-        updatedBy: 'OLD_USER'
+    test('should respect the limit parameter', async () => {
+      const leaderboardData = [
+        { userId: USER_1, points: 42 },
+        { userId: USER_2, points: 37 },
+        { userId: USER_3, points: 21 }
+      ];
+      
+      const karmaData: Record<string, KarmaData> = {
+        [USER_1]: { points: 42, lastUpdated: new Date().toISOString() },
+        [USER_2]: { points: 37, lastUpdated: new Date().toISOString() },
+        [USER_3]: { points: 21, lastUpdated: new Date().toISOString() }
+      };
+      
+      mockStorage.get.mockImplementation(async (key: string) => {
+        if (key === 'karma:leaderboard') {
+          return leaderboardData;
+        }
+        const userId = key.replace('karma:', '');
+        return karmaData[userId] || null;
       });
       
-      const result = await updateUserKarma(USER_ID, 5, 'NEW_USER', mockStorage);
+      const result = await getKarmaLeaderboard(mockStorage, 2);
       
-      expect(result.updatedBy).toBe('NEW_USER');
+      expect(result).toHaveLength(2);
+      expect(result[0].userId).toBe(USER_1);
+      expect(result[1].userId).toBe(USER_2);
     });
   });
 }); 

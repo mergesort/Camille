@@ -16,6 +16,12 @@ export interface KarmaData {
   updatedBy?: string; // User ID who last updated
 }
 
+// Interface for leaderboard entry
+interface LeaderboardEntry {
+  userId: string;
+  points: number;
+}
+
 /**
  * Get karma points for a user
  */
@@ -93,8 +99,12 @@ async function updateKarmaLeaderboard(
 ): Promise<void> {
   try {
     // Get the current leaderboard
-    const leaderboard = await storage.get<Array<{ userId: string; points: number }>>
-      (LEADERBOARD_KEY) || [];
+    const leaderboard = await storage.get<LeaderboardEntry[]>(LEADERBOARD_KEY) || [];
+    
+    // Ensure leaderboard is an array
+    if (!Array.isArray(leaderboard)) {
+      throw new Error('Leaderboard data is corrupted');
+    }
     
     // Find if the user is already in the leaderboard
     const userIndex = leaderboard.findIndex(entry => entry.userId === userId);
@@ -128,11 +138,10 @@ export async function getKarmaLeaderboard(
 ): Promise<Array<{ userId: string; karma: KarmaData }>> {
   try {
     // Get the stored leaderboard
-    const leaderboard = await storage.get<Array<{ userId: string; points: number }>>
-      (LEADERBOARD_KEY) || [];
+    const leaderboard = await storage.get<LeaderboardEntry[]>(LEADERBOARD_KEY);
     
-    // If empty, seed with some initial data for testing
-    if (leaderboard.length === 0) {
+    // If no leaderboard exists or it's empty, seed with initial data
+    if (!leaderboard || !Array.isArray(leaderboard) || leaderboard.length === 0) {
       return await seedInitialLeaderboard(storage, limit);
     }
     
