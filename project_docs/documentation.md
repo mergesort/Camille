@@ -13,6 +13,7 @@ camille-bot/
 │   ├── karma/            # Karma tracking functionality
 │   ├── link-tracking/    # Link tracking functionality
 │   ├── help/             # Help command implementation
+│   ├── autoresponders/   # Automatic response functionality
 │   ├── shared/           # Shared utilities
 │   │   ├── config/       # Configuration management
 │   │   ├── logging/      # Logging infrastructure
@@ -58,12 +59,32 @@ Tracks shared links and provides context when links are reshared:
 - Handles message deletions to clean up stale link references
 - Thread-aware link tracking
 
+### Autoresponders & Auto-moderation
+Provides automatic responses and content moderation for common messages and patterns:
+
+- **Greetings**: Responds with a friendly greeting and wave emoji when users say "hello"
+- **Inclusive Language**:
+  - Automatically detects non-inclusive language patterns like "hey guys"
+  - Provides gentle suggestions for more inclusive alternatives
+  - Promotes a welcoming community environment
+- **Content Transformation**:
+  - Automatically provides account-free versions of shared X/Twitter links
+  - Improves content accessibility for all users
+- **Real-time Monitoring**:
+  - Monitors messages in real-time for moderation patterns
+  - Provides immediate, constructive feedback
+  - Maintains a positive community atmosphere
+
 ### Help System
 Provides command guidance to users:
 
 - **Command Format**: `@camille help` 
 - Shows available commands and their usage
 - Bot-specific command recognition
+- Organized sections for:
+  - Karma System commands
+  - Autoresponder features
+  - General help and tips
 
 ## Implementation Details
 
@@ -148,7 +169,14 @@ npm run deploy
 - Bot ID verification ensures commands are processed only when explicitly mentioned
 
 ## Future Enhancements
-- Kind greetings when mentioning trigger words to the bot
-- Auto-moderation features
-- Admin controls and analytics
+- Enhanced auto-moderation capabilities:
+  - Additional language patterns and responses
+  - Customizable moderation rules
+  - Community feedback integration
+- Expanded admin tooling:
+  - Admin dashboard for community insights
+  - Automated moderation reports
+  - Custom admin commands
 - Message threading and context awareness
+- Community engagement metrics
+- Advanced reporting and insights

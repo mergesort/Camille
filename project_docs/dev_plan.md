@@ -310,6 +310,8 @@ export default {
  
 	- Respond with context if a link has been shared recently.
 
+	- Respond with xcancel.com link when an x.com or twitter.com link has been posted.
+
 
 ### 6. Logging and Error Handling 
 
