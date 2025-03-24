@@ -62,7 +62,7 @@ export default {
           try {
             // Initialize dependencies
             const config = getConfig(env);
-            const storage = new CloudflareKVStore(env.CAMILLE_KV);
+            const storage = new CloudflareKVStore(env.kv);
             const eventLogger = new CloudflareLogger('slack-events');
             
             // Call the event handler and await its response

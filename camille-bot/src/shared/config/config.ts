@@ -5,28 +5,28 @@
  */
 
 export interface Config {
-  slackCommunityId: string;
-  slackApiToken?: string;
-  slackSigningSecret?: string;
   apiHost: string;
-  alertUserId?: string;
+  slackApiToken?: string;
+  slackBotId?: string;
+  slackCommunityId: string;
+  slackSigningSecret?: string;
 }
 
 export interface Env {
-  SLACK_COMMUNITY_ID: string;
-  SLACK_API_TOKEN?: string;
-  SLACK_SIGNING_SECRET?: string;
   API_HOST: string;
-  ALERT_USER_ID?: string;
-  CAMILLE_KV: KVNamespace;
+  kv: KVNamespace;
+  SLACK_API_TOKEN?: string;
+  SLACK_BOT_ID?: string;
+  SLACK_COMMUNITY_ID: string;
+  SLACK_SIGNING_SECRET?: string;
 }
 
 export function getConfig(env: Env): Config {
   return {
-    slackCommunityId: env.SLACK_COMMUNITY_ID,
-    slackApiToken: env.SLACK_API_TOKEN,
-    slackSigningSecret: env.SLACK_SIGNING_SECRET,
     apiHost: env.API_HOST,
-    alertUserId: env.ALERT_USER_ID,
+    slackApiToken: env.SLACK_API_TOKEN,
+    slackBotId: env.SLACK_BOT_ID,
+    slackCommunityId: env.SLACK_COMMUNITY_ID,
+    slackSigningSecret: env.SLACK_SIGNING_SECRET,
   };
 } 

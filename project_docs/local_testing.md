@@ -6,6 +6,7 @@ This guide will walk you through setting up and testing the Camille Bot locally.
 
 - Node.js (latest LTS version)
 - npm
+- [ngrok](https://ngrok.com/) installed (for exposing local server to Slack)
 - A Slack workspace where you have permission to create apps
 
 ## Step 1: Set Up a Slack App
@@ -32,10 +33,10 @@ This guide will walk you through setting up and testing the Camille Bot locally.
 1. Create a `.dev.vars` file in the project root (using the `.dev.vars.example` as a template):
 
 ```
-SLACK_COMMUNITY_ID=your_workspace_id
-SLACK_API_TOKEN=xoxb-your-bot-token
-API_HOST=http://localhost:8787
-SLACK_SIGNING_SECRET=your-signing-secret
+API_HOST="your-ngrok-url-will-be-set-automatically"
+SLACK_API_TOKEN="xoxb-your-bot-token"
+SLACK_COMMUNITY_ID="your-slack-workspace-id"
+SLACK_SIGNING_SECRET="your-signing-secret"
 ```
 
 ### Getting Your Slack Community ID
@@ -61,12 +62,6 @@ The Slack API Token (Bot User OAuth Token) is used for authenticating API reques
 5. Copy this token and paste it into your `.dev.vars` file as the `SLACK_API_TOKEN` value
    - Note: If you haven't installed the app to your workspace yet, you'll need to do that first by clicking "Install to Workspace" at the top of the OAuth & Permissions page
 
-### API Host Configuration
-
-For local development:
-1. Set `API_HOST=http://localhost:8787` in your `.dev.vars` file
-2. This is the address where your local Wrangler development server will be running
-
 ### Slack Signing Secret
 
 The Signing Secret is used to verify that requests are coming from Slack:
@@ -77,39 +72,72 @@ The Signing Secret is used to verify that requests are coming from Slack:
 4. Look for "Signing Secret" and click "Show" to reveal it
 5. Copy this secret and paste it into your `.dev.vars` file as the `SLACK_SIGNING_SECRET` value
 
-## Step 3: Set Up Local KV Storage
+## Step 3: Set Up Development Configuration
 
-For local testing, Wrangler will create a local KV namespace that simulates Cloudflare KV. Update your `wrangler.toml` file:
+We provide a simplified approach for local development that handles the KV namespace creation and ngrok setup automatically.
 
-```toml
-# ...existing configuration...
+### Automated Setup (Recommended)
 
-[[kv_namespaces]]
-binding = "CAMILLE_KV"
-id = "dummy-id-for-local-dev"
-preview_id = "dummy-id-for-local-dev"
-```
+We've added script commands to streamline the local development process:
 
-## Step 4: Start the Local Development Server and Set Up ngrok
-
-To allow Slack to send events to your local server, you need to expose your local development server to the internet.
-
-1. Start the local development server in one terminal window:
+1. First, run the setup script (one-time setup):
    ```bash
-   npm run dev
+   npm run setup-dev-kv
    ```
-   You should see output indicating that the server is running on port 8787
+   This script creates a development KV namespace specifically for local testing and updates the configuration file.
 
-2. In a separate terminal window, install and start ngrok:
+2. To start local development with ngrok:
    ```bash
-   npm install -g ngrok
+   npm run dev-local
+   ```
+   This script:
+   - Starts ngrok to create a tunnel to your local server
+   - Automatically updates the development configuration with the ngrok URL
+   - Starts the local development server using Wrangler
+   - The script will output the ngrok URL that you'll need to configure Slack
+
+### Manual Setup (Alternative)
+
+If you prefer a manual approach:
+
+1. First, create a development KV namespace:
+   ```bash
+   npx wrangler kv:namespace create "camille_dev_kv" --preview
+   ```
+   Note the ID and preview_id values from the output.
+
+2. Update `wrangler.dev.toml` with these values:
+   ```toml
+   name = "camille-bot-dev"
+   main = "src/index.ts"
+   compatibility_date = "2024-09-23"
+   compatibility_flags = ["nodejs_compat"]
+
+   [vars]
+   SLACK_COMMUNITY_ID = "your-slack-workspace-id"
+   API_HOST = "your-ngrok-url"
+
+   [[kv_namespaces]]
+   binding = "kv"
+   id = "your-kv-namespace-id"
+   preview_id = "your-preview-id"
+   ```
+
+3. Start ngrok in a separate terminal:
+   ```bash
    ngrok http 8787
    ```
-   or download from [ngrok.com](https://ngrok.com/download)
 
-3. Note the HTTPS URL provided by ngrok (e.g., `https://a1b2c3d4.ngrok.io`)
+4. Copy the ngrok URL (e.g., `https://a1b2c3d4.ngrok.io`)
 
-## Step 5: Enable Event Subscriptions
+5. Update the `API_HOST` in your `wrangler.dev.toml` file
+
+6. Start the local server:
+   ```bash
+   npm run start-local
+   ```
+
+## Step 4: Enable Event Subscriptions
 
 Now that you have a running server and public URL, you can configure Slack event subscriptions:
 
@@ -118,9 +146,6 @@ Now that you have a running server and public URL, you can configure Slack event
 3. For the Request URL, enter your ngrok URL followed by `/slack/events` 
    (e.g., `https://a1b2c3d4.ngrok.io/slack/events`)
 4. Slack will verify the URL by sending a challenge request to your server
-   - Slack sends a POST request with a JSON payload containing a `challenge` parameter
-   - Your server must respond with the same challenge value in a JSON object
-   - The exact format should be: `{"challenge": "the-challenge-value-from-slack"}`
    - If verification succeeds, you'll see a green checkmark
    - If it fails, make sure your local server is running and the URL is correct
    - Check your server logs for any errors during verification
@@ -131,7 +156,7 @@ Now that you have a running server and public URL, you can configure Slack event
    - `reaction_removed` - When a reaction is removed from a message
 6. Click "Save Changes" at the bottom of the page
 
-## Step 6: Install App to Workspace
+## Step 5: Install App to Workspace
 
 1. In the sidebar, click on "Install App"
 2. Click "Install to Workspace"
@@ -143,19 +168,11 @@ Now that you have a running server and public URL, you can configure Slack event
    ```
 6. Restart your local development server to pick up the new token
 
-## Step 7: Test the Bot
+## Step 6: Test the Bot
 
 1. Go to a channel in your Slack workspace where the bot is installed
 2. Send a test message to verify the bot is receiving events
 3. When you send a message, you should see event logs in your local server console
-
-### Testing URL Verification
-
-When you first configure the Events API URL, Slack sends a challenge request. Your implementation should already handle this, but you can verify it works by:
-
-1. Temporarily remove the URL from the Event Subscriptions
-2. Add it back
-3. Check your local logs to confirm the challenge was received and responded to
 
 ### Testing Feature Modules
 
@@ -170,113 +187,79 @@ As you implement each feature module, you can test them individually:
 - **Events not being received**: 
   - Check that your ngrok URL is correct and that the Slack app has the necessary event subscriptions
   - Each time you restart ngrok, you'll get a new URL and need to update the Request URL in Slack
-  - Consider using ngrok with a fixed subdomain if you have a paid account
+  - Our `dev-local` script handles this automatically, but you'll still need to update your Slack app configuration
 
 - **Authentication errors**: Verify your Bot Token and Signing Secret
 
 - **Local server errors**: Check the console output for specific error messages
 
 - **KV storage issues**: Make sure Wrangler is properly configured for local KV emulation
-
-- **"Error: The script will never generate a response"**: 
-  - This occurs when the Worker doesn't properly return a Response object
-  - This is often related to async function handling. Follow these steps to resolve:
-  
-  1. Temporarily use a simplified Worker:
-     
-     Create a simple worker file (src/simple.ts):
-     ```typescript
-     // A simple Cloudflare Worker for Slack Event handling
-     export default {
-       async fetch(request: Request): Promise<Response> {
-         try {
-           // Return simple response for GET requests
-           if (request.method === 'GET') {
-             return new Response('Simple Slack event handler is running', {
-               headers: { 'Content-Type': 'text/plain' }
-             });
-           }
-           
-           // Handle POST requests (Slack events)
-           if (request.method === 'POST') {
-             const text = await request.text();
-             console.log('Received POST body:', text);
-             
-             try {
-               const json = JSON.parse(text);
-               
-               // Handle URL verification challenge
-               if (json.type === 'url_verification') {
-                 console.log('Received challenge:', json.challenge);
-                 return new Response(JSON.stringify({ challenge: json.challenge }), {
-                   headers: { 'Content-Type': 'application/json' }
-                 });
-               }
-               
-               // For other event types
-               return new Response('Event received', {
-                 headers: { 'Content-Type': 'text/plain' }
-               });
-             } catch (jsonError) {
-               return new Response('Invalid JSON', {
-                 status: 400,
-                 headers: { 'Content-Type': 'text/plain' }
-               });
-             }
-           }
-           
-           // For other methods
-           return new Response('Method not allowed', {
-             status: 405,
-             headers: { 'Content-Type': 'text/plain' }
-           });
-         } catch (error) {
-           return new Response(`Error: ${error.message}`, {
-             status: 500,
-             headers: { 'Content-Type': 'text/plain' }
-           });
-         }
-       }
-     };
-     ```
-  
-  2. Update wrangler.toml to use the simple worker:
-     ```toml
-     name = "camille-bot"
-     main = "src/simple.ts"  # Use the simple worker
-     compatibility_date = "2024-01-01"
-     compatibility_flags = ["nodejs_compat"]
-     ```
-  
-  3. After verifying the simple worker functions correctly and can pass the Slack verification challenge, apply the following lessons to your main index.ts file:
-     - Make sure the `fetch` function is marked as `async`
-     - Use `await` keyword for all async functions
-     - Avoid using complex routing libraries if they're causing issues
-     - Implement direct, simple path handling with conditions
-     - Ensure all code paths return a Response object, not a Promise
-
-  4. Common issues to check in your main codebase:
-     - Ensure you're awaiting all `Promise<Response>` returned from functions
-     - Check that all async functions are correctly marked as async
-     - Verify no Promises are being returned without resolution
-     - Avoid complex condition checking that might bypass response generation
+  - Run `npm run setup-dev-kv` again if KV configuration seems incorrect
 
 - **Slack URL verification fails**: 
   - Make sure your server is properly handling the challenge request
-  - The server must return a JSON response with the challenge value: `{"challenge": "value-from-request"}`
-  - The response Content-Type must be "application/json"
   - Check your logs to see if the request is reaching your server
   - Try restarting your development server and ngrok
   - If using the default implementation, ensure the handleSlackEvent function is being called
-  - Example of a Slack verification request:
-    ```json
-    {
-      "token": "some-token",
-      "challenge": "challenge-value-from-slack",
-      "type": "url_verification"
-    }
-    ```
 
 ## Next Steps
 
 Once you've verified local functionality, you can proceed to production deployment as outlined in the `cloudflare_deployment.md` guide. 
+
+## Running Tests
+
+Camille Bot includes a comprehensive test suite to ensure proper functionality. Tests are built using Jest and can be run using npm commands.
+
+### Running All Tests
+
+To run all tests:
+
+```bash
+npm test
+```
+
+This will execute all test suites defined in the project.
+
+### Running Specific Test Suites
+
+To run tests for specific modules (for faster development feedback), use the `--testPathPattern` flag:
+
+```bash
+# Run only link tracking tests
+npm test -- --testPathPattern=link-tracking
+
+# Run only karma tests
+npm test -- --testPathPattern=karma
+
+# Run only help system tests
+npm test -- --testPathPattern=help
+```
+
+### Test File Organization
+
+Test files are organized in `__tests__` directories within each feature module:
+
+- `src/link-tracking/__tests__/` - Tests for link tracking functionality
+- `src/karma/__tests__/` - Tests for karma system
+- `src/help/__tests__/` - Tests for help commands
+
+### Best Practices
+
+1. Run the specific test suite for the feature you're working on during development
+2. Run the complete test suite before deploying to production
+3. Add new tests when implementing new features or fixing bugs
+4. Ensure all tests pass before submitting changes
+
+### Debugging Tests
+
+For detailed test output, add the `--verbose` flag:
+
+```bash
+npm test -- --verbose
+```
+
+To watch files for changes and automatically re-run tests:
+
+```bash
+npm test -- --watch
+``` 

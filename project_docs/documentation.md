@@ -1,159 +1,154 @@
 # Camille Bot Documentation
 
-## Project Overview
+## Introduction
+Camille Bot is a Slack bot that helps with community management tasks such as monitoring karma, tracking links, providing help, and enhancing community interactions. Built on Cloudflare Workers with TypeScript, it provides a lightweight and efficient solution for Slack communities.
 
-Camille Bot is a Slack integration built on Cloudflare Workers that provides community management and assistance features. The bot is designed with a modular architecture to allow for easy extension of features over time.
+## Core Architecture
 
-## Technical Architecture
-
-### Infrastructure
-
-- **Platform**: Cloudflare Workers
-- **Language**: TypeScript
-- **Data Storage**: Cloudflare KV
-- **Deployment**: Wrangler CLI
-- **Environment**: Node.js compatibility mode
-
-### Directory Structure
-
+### Project Structure
 ```
 camille-bot/
-├── src/                    # Source code
-│   ├── index.ts            # Main entry point
-│   ├── shared/             # Shared utilities and core functionality
-│   │   ├── config/         # Configuration management
-│   │   ├── logging/        # Logging infrastructure
-│   │   ├── slack/          # Slack integration
-│   │   │   ├── events.ts   # Event handling
-│   │   │   └── utils.ts    # Slack utilities
-│   │   └── storage/        # Data persistence
-│   └── features/           # Feature-specific modules (future)
-├── dist/                   # Compiled JavaScript
-├── project_docs/           # Project documentation
-├── tsconfig.json           # TypeScript configuration
-├── wrangler.toml           # Cloudflare Workers configuration
-├── .dev.vars               # Local development variables (secret)
-└── .dev.vars.example       # Example development variables
+├── src/                  # Source code
+│   ├── index.ts          # Main entry point
+│   ├── karma/            # Karma tracking functionality
+│   ├── link-tracking/    # Link tracking functionality
+│   ├── help/             # Help command implementation
+│   ├── shared/           # Shared utilities
+│   │   ├── config/       # Configuration management
+│   │   ├── logging/      # Logging infrastructure
+│   │   ├── slack/        # Slack integration
+│   │   └── storage/      # Data persistence
+│   └── __tests__/        # Top-level tests
+├── scripts/              # Development scripts
+├── project_docs/         # Project documentation
+├── tsconfig.json         # TypeScript configuration
+├── wrangler.toml         # Cloudflare Workers configuration
+└── wrangler.dev.toml     # Development configuration
 ```
 
-## Core Components
+### Technology Stack
+- **Runtime**: Cloudflare Workers
+- **Language**: TypeScript
+- **Storage**: Cloudflare KV
+- **Testing**: Jest
+- **Development**: Wrangler & ngrok for local testing
 
-### Request Handler (index.ts)
+## Key Features
 
-The main entry point handles all HTTP requests, routing them to the appropriate handlers based on path and method. It provides:
+### Karma System
+The karma system allows community members to give or take points from each other:
 
-- Path-based routing
-- Method-specific handling
-- Error capture and reporting
-- Initialization of dependencies (config, logging, storage)
+- **Karma Modification**: 
+  - `@username++` - Add 1 karma
+  - `@username--` - Remove 1 karma
+  - `@username += N` - Add N karma
+  - `@username -= N` - Remove N karma
+- **Karma Command**: `@camille karma @username` to check karma
+- **Leaderboard**: `@camille leaderboard` to see top karma users
+- **Hacking**: Users are prevented from giving themselves karma
 
-### Slack Event Handling (shared/slack/events.ts)
+### Link Tracking
+Tracks shared links and provides context when links are reshared:
 
-Processes incoming Slack events with:
+- Detects URLs in messages
+- Normalizes URLs to ensure consistent storage (http/https, www prefixes, trailing slashes)
+- Stores link sharing context (user, channel, message timestamp)
+- Provides cross-channel link notifications
+- Creates proper Slack permalinks to original messages
+- Handles message deletions to clean up stale link references
+- Thread-aware link tracking
 
+### Help System
+Provides command guidance to users:
+
+- **Command Format**: `@camille help` 
+- Shows available commands and their usage
+- Bot-specific command recognition
+
+## Implementation Details
+
+### Event Handling
+The Slack event handler provides:
 - Signature verification for security
 - Challenge response handling for URL verification
 - Structured event processing
-- Event persistence for debugging
+- Message event routing to feature handlers
 
-### Storage Layer (shared/storage/kv-store.ts)
-
+### Storage Layer
 Abstracts Cloudflare KV storage operations:
-
 - Simple get/set/delete operations
 - JSON serialization/deserialization
 - Type safety with generics
-- Future extensibility
+- TTL-based expiration for links
 
-### Logging System (shared/logging/logger.ts)
-
+### Logging System
 Provides structured logging that works in both development and production:
-
 - Level-based logging (DEBUG, INFO, WARN, ERROR)
 - Context awareness
 - Timestamps
-- JSON formatting
 - Error details with stack traces
 
-### Configuration (shared/config/config.ts)
-
-Centralizes access to environment variables and settings:
-
+### Configuration
+Centralized access to environment variables and settings:
 - Type-safe configuration
+- Bot ID-aware command processing
 - Environment variable mapping
-- Default values
-
-### Slack Utilities (shared/slack/utils.ts)
-
-Helper functions for Slack integration:
-
-- Request signature verification
-- Simple API client for sending messages
-
-## Setup and Deployment
-
-### Local Development
-
-1. Clone the repository
-2. Install dependencies:
-   ```
-   npm install
-   ```
-3. Create a `.dev.vars` file based on `.dev.vars.example`
-4. Start the local development server:
-   ```
-   npm run dev
-   ```
-
-### Production Deployment
-
-1. Build the project:
-   ```
-   npm run build
-   ```
-2. Deploy to Cloudflare Workers:
-   ```
-   npm run deploy
-   ```
-
-## Slack App Configuration
-
-1. Create a Slack app at https://api.slack.com/apps
-2. Set up Bot Token Scopes:
-   - `chat:write`
-   - Other scopes as needed for features
-3. Enable Event Subscriptions
-4. Set the Request URL to `https://your-worker-url.workers.dev/slack/events`
-5. Subscribe to bot events:
-   - `message.channels` (example - actual events depend on features)
-6. Install the app to your workspace
 
 ## Environment Variables
-
 The following environment variables are required:
+- `API_HOST`: The host URL for the API
+- `SLACK_API_TOKEN`: Slack API token
+- `SLACK_BOT_ID`: The bot's Slack User ID (for command recognition)
+- `SLACK_COMMUNITY_ID`: Slack workspace ID
+- `SLACK_SIGNING_SECRET`: Slack signing secret for request verification
 
-- `SLACK_COMMUNITY_ID`: Slack workspace/community ID
-- `SLACK_API_TOKEN`: Bot token for API calls
-- `SLACK_SIGNING_SECRET`: Signing secret for request verification
-- `API_HOST`: Host URL for the API
+## Development & Testing
+
+### Local Development
+For local development and testing with real Slack events, we provide tools to set up a local environment:
+
+```bash
+# One-time setup of development KV namespace
+npm run setup-dev-kv
+
+# Start local development with ngrok
+npm run dev-local
+```
+
+These scripts handle:
+- Creating a development KV namespace
+- Setting up ngrok to create a public URL for your local server
+- Configuring the proper environment for local testing
+
+See the [Local Testing Guide](./local_testing.md) for detailed instructions.
+
+### Running Tests
+Camille Bot includes a comprehensive test suite:
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test suites
+npm test -- --testPathPattern=link-tracking
+npm test -- --testPathPattern=karma
+```
+
+### Deployment
+Deploy to Cloudflare Workers:
+
+```bash
+npm run deploy
+```
 
 ## Security Considerations
-
 - Slack request signatures are verified to prevent spoofing
 - Sensitive configuration is stored in environment variables
 - Request timestamps are checked to prevent replay attacks
+- Bot ID verification ensures commands are processed only when explicitly mentioned
 
-## Extending the Bot
-
-To add new features:
-
-1. Create a new module in the `src/features/` directory
-2. Implement the feature logic
-3. Update the event handler in `src/shared/slack/events.ts` to route events to your feature
-4. Add any necessary API endpoints to `src/index.ts`
-
-## Troubleshooting
-
-- Use the `/debug` endpoint to inspect incoming requests
-- Check Cloudflare Worker logs in the dashboard
-- Review event logs stored in KV storage
+## Future Enhancements
+- Kind greetings when mentioning trigger words to the bot
+- Auto-moderation features
+- Admin controls and analytics
+- Message threading and context awareness

@@ -33,20 +33,20 @@ This guide will walk you through deploying the Camille Bot to Cloudflare Workers
 
 1. Create a KV namespace for the Camille Bot:
    ```bash
-   wrangler kv:namespace create "CAMILLE_KV"
+   wrangler kv:namespace create "kv"
    ```
 
 2. This will output configuration that looks like:
    ```
    Add the following to your wrangler.toml:
    [[kv_namespaces]]
-   binding = "CAMILLE_KV"
-   id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   binding = "kv"
+   id = "612eb6b40758414cb48e9cc7a97339ed"
    ```
 
 3. Create a preview namespace for local development:
    ```bash
-   wrangler kv:namespace create "CAMILLE_KV" --preview
+   wrangler kv:namespace create "kv" --preview
    ```
 
 4. Update your `wrangler.toml` with both namespaces:
@@ -60,8 +60,8 @@ This guide will walk you through deploying the Camille Bot to Cloudflare Workers
    API_HOST = ""
 
    [[kv_namespaces]]
-   binding = "CAMILLE_KV"
-   id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" # Your production namespace ID
+   binding = "kv"
+   id = "612eb6b40758414cb48e9cc7a97339ed"
    preview_id = "yyyyyyyyyyyyyyyyyyyyyyyyyyyy" # Your preview namespace ID
    ```
 
@@ -87,7 +87,41 @@ Cloudflare Workers uses environment variables for configuration, which you'll ne
    API_HOST = "https://camille-bot.your-subdomain.workers.dev"
    ```
 
-## Step 4: Build and Deploy
+## Step 4: Configure Bot ID (Required for Proper Command Handling)
+
+To ensure the bot only responds to commands directed specifically at it, you need to configure the `SLACK_BOT_ID` environment variable:
+
+1. Obtain your bot's Slack User ID:
+   - Open your Slack workspace in a browser
+   - Right-click on your bot in the members list or a message from your bot
+   - Select "Copy Link" or "Copy Member ID" (depending on Slack interface)
+   - The ID is the part that starts with "U" or "B" (e.g., "U01234ABCD")
+   
+   Alternatively, you can use the Slack API tester:
+   - Go to https://api.slack.com/methods/auth.test/test
+   - Use your bot token to test the API
+   - Look for the "user_id" field in the response
+
+2. Add the ID to your `wrangler.toml` file:
+   ```toml
+   [vars]
+   SLACK_COMMUNITY_ID = "T01234ABCD"
+   SLACK_BOT_ID = "U01234ABCD" # Your bot's user ID
+   API_HOST = "https://camille-bot.your-subdomain.workers.dev"
+   ```
+
+3. Or set it as a secret (if preferred):
+   ```bash
+   wrangler secret put SLACK_BOT_ID
+   ```
+
+### Important Notes About Bot ID
+
+- **Without this configuration**: The bot will respond to commands directed at ANY user that match the command format, not just when the bot is specifically mentioned.
+- **With this configuration**: The bot will only respond when directly mentioned with its Slack User ID (e.g., "@Camille help").
+- **Updating the Bot ID**: If you rename or recreate your Slack app, you may need to update this ID. Simply follow the steps above to get the new ID and update your configuration.
+
+## Step 5: Build and Deploy
 
 1. Build your TypeScript project:
    ```bash
@@ -108,7 +142,7 @@ Cloudflare Workers uses environment variables for configuration, which you'll ne
    https://camille-bot.your-subdomain.workers.dev
    ```
 
-## Step 5: Update Slack App Configuration
+## Step 6: Update Slack App Configuration
 
 1. Go to your Slack App's configuration page
 2. Navigate to "Event Subscriptions"
@@ -118,7 +152,7 @@ Cloudflare Workers uses environment variables for configuration, which you'll ne
    ```
 4. Slack will verify the URL to ensure it responds correctly
 
-## Step 6: Verify Deployment
+## Step 7: Verify Deployment
 
 1. Test your bot by sending messages in your Slack workspace
 2. Check Cloudflare Worker logs:
