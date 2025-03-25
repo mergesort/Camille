@@ -38,6 +38,13 @@ export const SLACK_MENTION_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>/g;
 // ============================
 
 /**
+ * Slack formatted URL regex pattern
+ * Matches URLs formatted by Slack as <URL> or <URL|text>
+ * This is the preferred pattern for link detection in Slack messages
+ */
+export const SLACK_FORMATTED_URL_REGEX = /<((?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))[^>]*>/gi;
+
+/**
  * Comprehensive URL regex pattern
  * Matches URLs with or without protocols (http/https/www)
  * Handles various TLDs and subdomains

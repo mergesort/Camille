@@ -37,7 +37,7 @@ describe('Link Tracking', () => {
       mockKVStore.get.mockResolvedValue(null);
       
       const message = {
-        text: 'Check out https://example.com and google.com',
+        text: 'Check out <https://example.com> and <http://google.com>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345'
@@ -47,7 +47,7 @@ describe('Link Tracking', () => {
       
       expect(result.linksFound).toHaveLength(2);
       expect(result.linksFound).toContain('https://example.com');
-      expect(result.linksFound).toContain('google.com');
+      expect(result.linksFound).toContain('http://google.com');
       expect(result.response).toBeUndefined();
       
       // Verify storage was called for both links
@@ -73,7 +73,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Check out https://example-site.com',
+        text: 'Check out <https://example-site.com>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345'
@@ -114,7 +114,7 @@ describe('Link Tracking', () => {
       
       // Use a different URL format in the new message
       const message = {
-        text: 'Check out http://www.example-site.com',
+        text: 'Check out <http://www.example-site.com>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345'
@@ -150,7 +150,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Resharing https://example-site.com',
+        text: 'Resharing <https://example-site.com>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345' // Same user
@@ -190,7 +190,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Check out https://example-site.com',
+        text: 'Check out <https://example-site.com>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345',
@@ -232,7 +232,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Check out https://example-site.com again',
+        text: 'Check out <https://example-site.com> again',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345',
@@ -265,7 +265,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Check out https://apple.com/iphone',
+        text: 'Check out <https://apple.com/iphone>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345'
@@ -291,7 +291,7 @@ describe('Link Tracking', () => {
     });
 
     describe('Link Extraction', () => {
-      test('should not extract decimal numbers in karma commands as links', async () => {
+      test('should handle karma commands properly', async () => {
         const message = {
           text: '<@U12345> += 11.4 and <@U67890> -= 2.6',
           ts: '123456789.123456',
@@ -306,7 +306,7 @@ describe('Link Tracking', () => {
         expect(mockKVStore.set).not.toHaveBeenCalled();
       });
       
-      test('should not extract date-like or version formats as links', async () => {
+      test('should handle date formats properly', async () => {
         const message = {
           text: 'This release is version 24.07.26 and will be deployed tomorrow',
           ts: '123456789.123456',
@@ -321,7 +321,7 @@ describe('Link Tracking', () => {
         expect(mockKVStore.set).not.toHaveBeenCalled();
       });
       
-      test('should not extract IP-like formats as links', async () => {
+      test('should handle IP-like formats properly', async () => {
         const message = {
           text: 'The server IP is 192.168.0.1 and the alternate is 10.0.0.1',
           ts: '123456789.123456',
@@ -336,7 +336,7 @@ describe('Link Tracking', () => {
         expect(mockKVStore.set).not.toHaveBeenCalled();
       });
       
-      test('should not extract numeric patterns like 11.4.0', async () => {
+      test('should handle version numbers properly', async () => {
         const message = {
           text: 'We just upgraded to version 11.4.0 from 10.3.2',
           ts: '123456789.123456',
@@ -351,9 +351,9 @@ describe('Link Tracking', () => {
         expect(mockKVStore.set).not.toHaveBeenCalled();
       });
       
-      test('should still extract valid domain names with numeric components', async () => {
+      test('should extract valid domains with numeric components', async () => {
         const message = {
-          text: 'Visit 123.io and 456.com for more information',
+          text: 'Visit <http://123.io> and <https://456.com> for more information',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -363,13 +363,13 @@ describe('Link Tracking', () => {
         
         // Should find these as they are valid domains with proper TLDs
         expect(result.linksFound).toHaveLength(2);
-        expect(result.linksFound).toContain('123.io');
-        expect(result.linksFound).toContain('456.com');
+        expect(result.linksFound).toContain('http://123.io');
+        expect(result.linksFound).toContain('https://456.com');
       });
       
       test('should extract domains with newer or less common TLDs', async () => {
         const message = {
-          text: 'Check out plinky.ai and redpanda.club and my website at example.xyz',
+          text: 'Check out <https://plinky.ai> and <https://redpanda.club> and my website at <http://example.xyz>',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -379,14 +379,14 @@ describe('Link Tracking', () => {
         
         // Should find all three domains with different TLDs
         expect(result.linksFound).toHaveLength(3);
-        expect(result.linksFound).toContain('plinky.ai');
-        expect(result.linksFound).toContain('redpanda.club');
-        expect(result.linksFound).toContain('example.xyz');
+        expect(result.linksFound).toContain('https://plinky.ai');
+        expect(result.linksFound).toContain('https://redpanda.club');
+        expect(result.linksFound).toContain('http://example.xyz');
       });
       
       test('should handle country-specific TLDs and numeric subdomain parts', async () => {
         const message = {
-          text: 'Sites to check: gov.uk, 123.music.jp, and web3.foundation',
+          text: 'Sites to check: <https://gov.uk>, <http://123.music.jp>, and <https://web3.foundation>',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -396,12 +396,12 @@ describe('Link Tracking', () => {
         
         // Should find all three domains
         expect(result.linksFound).toHaveLength(3);
-        expect(result.linksFound).toContain('gov.uk');
-        expect(result.linksFound).toContain('123.music.jp');
-        expect(result.linksFound).toContain('web3.foundation');
+        expect(result.linksFound).toContain('https://gov.uk');
+        expect(result.linksFound).toContain('http://123.music.jp');
+        expect(result.linksFound).toContain('https://web3.foundation');
       });
       
-      test('should not extract IP-like formats from karma commands but should extract real IPs', async () => {
+      test('should handle karma commands with IP-like formats', async () => {
         const message = {
           text: '<@U12345> += 24.7.0.26 and a real IP address is 192.168.1.1',
           ts: '123456789.123456',
@@ -417,7 +417,7 @@ describe('Link Tracking', () => {
       
       test('should handle mixed content with karma commands and real links', async () => {
         const message = {
-          text: '<@U12345> += 11.4 points for sharing github.com and <@U67890> -= 2.6',
+          text: '<@U12345> += 11.4 points for sharing <https://github.com> and <@U67890> -= 2.6',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -427,12 +427,12 @@ describe('Link Tracking', () => {
         
         // Should find only the GitHub link
         expect(result.linksFound).toHaveLength(1);
-        expect(result.linksFound[0]).toBe('github.com');
+        expect(result.linksFound[0]).toBe('https://github.com');
       });
       
       test('should not extract URLs from inline code blocks', async () => {
         const message = {
-          text: 'I want to show you `https://github.com/mergesort/Camille` so you can look at the code',
+          text: 'I want to show you `<https://github.com/mergesort/Camille>` so you can look at the code',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -446,7 +446,7 @@ describe('Link Tracking', () => {
       
       test('should not extract URLs from multi-line code blocks', async () => {
         const message = {
-          text: 'Check this example code:\n```\nURL(string: https://github.com/mergesort/Camille)!\n```\nLooks good?',
+          text: 'Check this example code:\n```\nURL(string: <https://github.com/mergesort/Camille>)!\n```\nLooks good?',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -460,7 +460,7 @@ describe('Link Tracking', () => {
       
       test('should still extract URLs outside of code blocks', async () => {
         const message = {
-          text: 'Check the docs at https://github.com/mergesort/Camille and here\'s some example code: `let url = "https://example.com"`',
+          text: 'Check the docs at <https://github.com/mergesort/Camille> and here\'s some example code: `let url = "<https://example.com>"`',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -475,7 +475,7 @@ describe('Link Tracking', () => {
       
       test('should handle messages with both inline and multi-line code blocks', async () => {
         const message = {
-          text: 'Real link: github.com and code examples: `https://example.com` and ```\nvar url = "https://test.com";\n```',
+          text: 'Real link: <https://github.com> and code examples: `<https://example.com>` and ```\nvar url = "<https://test.com>";\n```',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -485,23 +485,53 @@ describe('Link Tracking', () => {
         
         // Should only extract real URL outside of code blocks
         expect(result.linksFound).toHaveLength(1);
-        expect(result.linksFound[0]).toBe('github.com');
+        expect(result.linksFound[0]).toBe('https://github.com');
+      });
+      
+      test('should detect Slack-formatted URLs', async () => {
+        const message = {
+          text: 'Check out <https://example.com|Example Site> and <https://github.com>',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should detect both links - one with display text and one without
+        expect(result.linksFound).toHaveLength(2);
+        expect(result.linksFound).toContain('https://example.com');
+        expect(result.linksFound).toContain('https://github.com');
+      });
+      
+      test('should not confuse user or channel mentions with links', async () => {
+        const message = {
+          text: 'Hey <@U12345> check <#C12345> channel and see <https://example.com>',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should only detect the actual link, not the mentions
+        expect(result.linksFound).toHaveLength(1);
+        expect(result.linksFound).toContain('https://example.com');
       });
     });
   });
   
   describe('processMessageDeletion', () => {
     test('should delete link reference when message is deleted', async () => {
-      // Set up a previously shared link that we'll "delete"
+      // Set up a test link that exists in storage
       const existingLink = {
         url: 'https://example-site.com',
         channelId: 'C12345',
-        messageId: '111111111.111111',
-        userId: 'U54321',
+        messageId: '123456789.123456',
+        userId: 'U12345',
         timestamp: '2023-03-01T12:00:00.000Z'
       };
       
-      // Mock that we'll find the link from our deleted message
       mockKVStore.get.mockImplementation(async (key: string) => {
         if (key.includes('example-site.com')) {
           return existingLink;
@@ -509,18 +539,16 @@ describe('Link Tracking', () => {
         return null;
       });
       
-      // Create a message deletion event
       const event = {
-        ts: '123456789.123456', // This is the Slack timestamp for the deletion event
+        ts: '123456789.123456',
         channel: 'C12345',
         previous_message: {
-          text: 'Check out https://example-site.com',
-          ts: '111111111.111111', // This needs to match our mockKVStore link
-          user: 'U54321'
+          text: 'Check out <https://example-site.com>',
+          ts: '123456789.123456',
+          user: 'U12345'
         }
       };
       
-      // Process the deletion
       await processMessageDeletion(event, mockKVStore, mockLogger);
       
       // Verify the link was found and deleted
@@ -529,23 +557,22 @@ describe('Link Tracking', () => {
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'Message deletion: Deleting link reference',
         expect.objectContaining({
-          url: expect.stringContaining('example-site.com'),
-          normalizedUrl: expect.stringContaining('example-site.com')
+          url: 'https://example-site.com',
+          messageTs: '123456789.123456'
         })
       );
     });
     
     test('should not delete link reference when message is different', async () => {
-      // Set up a previously shared link that doesn't match our deletion
+      // Set up a test link that exists in storage but with a different message ID
       const existingLink = {
         url: 'https://example-site.com',
         channelId: 'C12345',
-        messageId: '999999999.999999', // Different ID from what we'll delete
-        userId: 'U54321',
+        messageId: '999999999.999999', // Different from the deleted message
+        userId: 'U12345',
         timestamp: '2023-03-01T12:00:00.000Z'
       };
       
-      // Mock that we'll find the link, but it's from a different message
       mockKVStore.get.mockImplementation(async (key: string) => {
         if (key.includes('example-site.com')) {
           return existingLink;
@@ -553,18 +580,16 @@ describe('Link Tracking', () => {
         return null;
       });
       
-      // Create a message deletion event
       const event = {
         ts: '123456789.123456',
         channel: 'C12345',
         previous_message: {
-          text: 'Check out https://example-site.com',
-          ts: '111111111.111111', // Different from our stored link
-          user: 'U54321'
+          text: 'Check out <https://example-site.com>',
+          ts: '123456789.123456', // Different from the stored link
+          user: 'U12345'
         }
       };
       
-      // Process the deletion
       await processMessageDeletion(event, mockKVStore, mockLogger);
       
       // Verify the link was found but NOT deleted
@@ -573,52 +598,45 @@ describe('Link Tracking', () => {
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'Message deletion: Link reference not found or from different message',
         expect.objectContaining({
-          matchesMessage: false
+          url: 'https://example-site.com',
+          messageTs: '123456789.123456'
         })
       );
     });
     
     test('should handle multiple links in a deleted message', async () => {
-      // Set up links that will be found in the deleted message
-      const existingLink1 = {
-        url: 'https://example-site.com',
-        channelId: 'C12345',
-        messageId: '111111111.111111',
-        userId: 'U54321',
-        timestamp: '2023-03-01T12:00:00.000Z'
-      };
-      
-      const existingLink2 = {
-        url: 'https://another-site.com',
-        channelId: 'C12345',
-        messageId: '111111111.111111',
-        userId: 'U54321',
-        timestamp: '2023-03-01T12:00:00.000Z'
-      };
-      
-      // Mock that we'll find both links from our deleted message
+      // Set up multiple test links
       mockKVStore.get.mockImplementation(async (key: string) => {
         if (key.includes('example-site.com')) {
-          return existingLink1;
-        }
-        if (key.includes('another-site.com')) {
-          return existingLink2;
+          return {
+            url: 'https://example-site.com',
+            channelId: 'C12345',
+            messageId: '123456789.123456',
+            userId: 'U12345',
+            timestamp: '2023-03-01T12:00:00.000Z'
+          };
+        } else if (key.includes('another-site.com')) {
+          return {
+            url: 'https://another-site.com',
+            channelId: 'C12345',
+            messageId: '123456789.123456',
+            userId: 'U12345',
+            timestamp: '2023-03-01T12:00:00.000Z'
+          };
         }
         return null;
       });
       
-      // Create a message deletion event with multiple links
       const event = {
         ts: '123456789.123456',
         channel: 'C12345',
         previous_message: {
-          text: 'Check out https://example-site.com and also https://another-site.com',
-          ts: '111111111.111111',
-          user: 'U54321'
+          text: 'Check out <https://example-site.com> and <https://another-site.com>',
+          ts: '123456789.123456',
+          user: 'U12345'
         }
       };
       
-      // Process the deletion
       await processMessageDeletion(event, mockKVStore, mockLogger);
       
       // Verify both links were found and deleted
@@ -627,22 +645,46 @@ describe('Link Tracking', () => {
       expect(mockKVStore.delete).toHaveBeenCalledWith(expect.stringContaining('another-site.com'));
     });
     
-    test('should handle message deletion with no previous message content', async () => {
-      // Create a message deletion event with no previous_message
+    test('should ignore messages without previous content', async () => {
       const event = {
         ts: '123456789.123456',
-        channel: 'C12345'
-        // No previous_message field
+        channel: 'C12345',
+        // No previous_message property
       };
       
-      // Process the deletion
       await processMessageDeletion(event, mockKVStore, mockLogger);
       
-      // Verify we logged but didn't try to process links
+      // Should log that no previous message content is available
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'Message deletion: No previous message content available',
         expect.any(Object)
       );
+      
+      // No storage operations should be performed
+      expect(mockKVStore.get).not.toHaveBeenCalled();
+      expect(mockKVStore.delete).not.toHaveBeenCalled();
+    });
+    
+    test('should handle messages with no links', async () => {
+      const event = {
+        ts: '123456789.123456',
+        channel: 'C12345',
+        previous_message: {
+          text: 'This is a message with no links',
+          ts: '123456789.123456',
+          user: 'U12345'
+        }
+      };
+      
+      await processMessageDeletion(event, mockKVStore, mockLogger);
+      
+      // Should log that no links were found
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'Message deletion: No links found in deleted message',
+        expect.any(Object)
+      );
+      
+      // No storage operations should be performed
       expect(mockKVStore.get).not.toHaveBeenCalled();
       expect(mockKVStore.delete).not.toHaveBeenCalled();
     });
