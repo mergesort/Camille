@@ -15,7 +15,6 @@ Camille is an extensible Slack bot designed to enhance community management and 
 - Provide context when links are reshared
 - Cross-channel link notifications
 - Thread-aware link tracking
-- Automatic cleanup of deleted messages
 
 ### 🤝 Community Management
 - Automatic responses to common phrases
