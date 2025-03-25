@@ -289,10 +289,39 @@ function formatKarmaResponse(results: Map<string, KarmaData>): string {
   const parts = [];
   
   for (const [userId, data] of results.entries()) {
-    parts.push(`<@${userId}> now has ${data.points} karma points`);
+    const change = data.lastChange || 0;
+    const message = getKarmaChangeMessage(userId, data.points, change);
+    parts.push(message);
   }
   
-  return parts.join('. ') + '.';
+  return parts.join(' ');
+}
+
+/**
+ * Get a randomized message for karma changes
+ */
+function getKarmaChangeMessage(userId: string, points: number, change: number): string {
+  const pluralizedScoreString = points === 1 ? "camillecoin" : "camillecoins";
+  
+  // Positive messages
+  const positiveMessages = [
+    (userId: string, points: number) => `You rock <@${userId}>! Now at ${points}.`,
+    (userId: string, points: number) => `Nice job, <@${userId}>! Your karma just bumped to ${points}.`,
+    (userId: string, points: number) => `Awesome <@${userId}>! You're now at ${points} ${pluralizedScoreString}.`
+  ];
+  
+  // Negative messages
+  const negativeMessages = [
+    (userId: string, points: number) => `booooo <@${userId}>! Now at ${points}.`,
+    (userId: string, points: number) => `Tssss <@${userId}>. Dropped your karma to ${points}.`,
+    (userId: string, points: number) => `Sorry, but I have to drop <@${userId}>'s karma down to ${points} ${pluralizedScoreString}.`
+  ];
+  
+  // Select random message based on whether change is positive or negative
+  const messages = change >= 0 ? positiveMessages : negativeMessages;
+  const randomIndex = Math.floor(Math.random() * messages.length);
+  
+  return messages[randomIndex](userId, points);
 }
 
 /**

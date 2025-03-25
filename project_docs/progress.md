@@ -117,6 +117,27 @@
 - Added development wrangler configuration
 - Created simplified setup commands for new developers
 
+### User Experience Enhancements
+- Modified `@camille help` command to send ephemeral messages (visible only to the requesting user) instead of thread replies
+- Changed karma change notifications to display inline in channels rather than as thread replies
+- Implemented randomized, personality-rich responses for karma changes:
+  - Added positive messages for karma increases (e.g., "You rock @user! Now at 5.")
+  - Added negative messages for karma decreases (e.g., "booooo @user! Now at 3.")
+  - Implemented proper pluralization of "camillecoin/camillecoins" in messages
+  - Added variation through randomly selected message templates
+
+### Code Quality Improvements
+- Refactored Slack messaging functions into a dedicated module:
+  - Created a `messaging.ts` file with all Slack messaging utilities
+  - Implemented `sendSlackMessage`, `sendSlackEphemeralMessage`, and `addSlackReaction` functions
+  - Created better code organization for improved maintainability
+  - Added proper exports via `index.ts` for easier importing
+- Enhanced test coverage:
+  - Added tests for the new karma message formats
+  - Added tests for the pluralization logic
+  - Fixed existing tests to accommodate new message formats
+  - Added comprehensive response format validation
+
 ## Next Steps
 
 1. Expand auto-moderation capabilities with additional patterns and responses

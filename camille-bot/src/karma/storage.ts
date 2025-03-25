@@ -14,6 +14,7 @@ export interface KarmaData {
   points: number;
   lastUpdated: string; // ISO date string
   updatedBy?: string; // User ID who last updated
+  lastChange?: number; // Amount of last change (positive or negative)
 }
 
 // Interface for leaderboard entry
@@ -72,7 +73,8 @@ export async function updateUserKarma(
   const updatedKarma: KarmaData = {
     points: newPoints,
     lastUpdated: new Date().toISOString(),
-    updatedBy
+    updatedBy,
+    lastChange: changeAmount
   };
   
   await storage.set(`${KARMA_KEY_PREFIX}${userId}`, updatedKarma);
@@ -213,15 +215,15 @@ function generateFallbackLeaderboard(): Array<{ userId: string; karma: KarmaData
   return [
     {
       userId: 'U12345',
-      karma: { points: 42, lastUpdated: new Date().toISOString() }
+      karma: { points: 42, lastUpdated: new Date().toISOString(), lastChange: 5 }
     },
     {
       userId: 'U67890',
-      karma: { points: 37, lastUpdated: new Date().toISOString() }
+      karma: { points: 37, lastUpdated: new Date().toISOString(), lastChange: 3 }
     },
     {
       userId: 'U11111',
-      karma: { points: 21, lastUpdated: new Date().toISOString() }
+      karma: { points: 21, lastUpdated: new Date().toISOString(), lastChange: -2 }
     }
   ];
 } 

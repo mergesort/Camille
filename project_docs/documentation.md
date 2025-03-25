@@ -42,10 +42,14 @@ The karma system allows community members to give or take points from each other
 - **Karma Modification**: 
   - `@username++` - Add 1 karma
   - `@username--` - Remove 1 karma
-  - `@username += N` - Add N karma
-  - `@username -= N` - Remove N karma
+  - `@username += N` - Add N karma (max 10)
+  - `@username -= N` - Remove N karma (max 10)
 - **Karma Command**: `@camille karma @username` to check karma
 - **Leaderboard**: `@camille leaderboard` to see top karma users
+- **Response Format**: Uses personality-rich messages with randomized templates:
+  - Positive messages for karma increases (e.g., "You rock @user! Now at 5 camillecoins.")
+  - Negative messages for karma decreases (e.g., "Tssss @user. Dropped your karma to 3.")
+  - Proper "camillecoin/camillecoins" pluralization
 - **Hacking**: Users are prevented from giving themselves karma
 
 ### Link Tracking
@@ -80,6 +84,7 @@ Provides command guidance to users:
 
 - **Command Format**: `@camille help` 
 - Shows available commands and their usage
+- Displays as an ephemeral message (visible only to the requesting user)
 - Bot-specific command recognition
 - Organized sections for:
   - Karma System commands
@@ -94,6 +99,7 @@ The Slack event handler provides:
 - Challenge response handling for URL verification
 - Structured event processing
 - Message event routing to feature handlers
+- Support for in-line, threaded, and ephemeral responses based on message type
 
 ### Storage Layer
 Abstracts Cloudflare KV storage operations:
@@ -114,6 +120,14 @@ Centralized access to environment variables and settings:
 - Type-safe configuration
 - Bot ID-aware command processing
 - Environment variable mapping
+
+### Slack Messaging
+Provides a set of utilities for sending various types of messages to Slack:
+- `sendSlackMessage`: Sends regular messages to channels/threads
+- `sendSlackEphemeralMessage`: Sends ephemeral messages visible only to specific users
+- `addSlackReaction`: Adds emoji reactions to messages
+- Message formatting options for various content types
+- Thread awareness and linking
 
 ## Environment Variables
 The following environment variables are required:

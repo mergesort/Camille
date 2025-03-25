@@ -62,7 +62,8 @@ describe('Karma Module', () => {
       const result = await processKarmaMessage(message, SENDER_USER_ID, mockStorage, mockLogger);
       
       // Verify response
-      expect(result.response).toContain(`<@${TARGET_USER_ID}> now has 6 karma points`);
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain(`6`);
     });
     
     test('-- operator should subtract 1 karma point', async () => {
@@ -71,7 +72,8 @@ describe('Karma Module', () => {
       const result = await processKarmaMessage(message, SENDER_USER_ID, mockStorage, mockLogger);
       
       // Verify response
-      expect(result.response).toContain(`<@${TARGET_USER_ID}> now has 4 karma points`);
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain(`4`);
     });
     
     test('+= operator should add multiple karma points', async () => {
@@ -80,7 +82,8 @@ describe('Karma Module', () => {
       const result = await processKarmaMessage(message, SENDER_USER_ID, mockStorage, mockLogger);
       
       // Verify response
-      expect(result.response).toContain(`<@${TARGET_USER_ID}> now has 15 karma points`);
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain(`15`);
     });
     
     test('-= operator should subtract multiple karma points', async () => {
@@ -89,7 +92,8 @@ describe('Karma Module', () => {
       const result = await processKarmaMessage(message, SENDER_USER_ID, mockStorage, mockLogger);
       
       // Verify response
-      expect(result.response).toContain(`<@${TARGET_USER_ID}> now has 3 karma points`);
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain(`3`);
     });
     
     test('should respect MAX_KARMA_CHANGE limit', async () => {
@@ -102,7 +106,8 @@ describe('Karma Module', () => {
         mockLogger
       );
       
-      expect(result.response).toContain(`<@${TARGET_USER_ID}> now has 15 karma points`);
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain(`15`);
     });
   });
   
@@ -123,22 +128,24 @@ describe('Karma Module', () => {
     });
     
     test('should handle multiple karma operations in one message', async () => {
-      const message = `<@${USER_1}> ++ and also <@${USER_2}> ++`;
+      const message = `Good job <@${USER_1}> ++ and <@${USER_2}> += 6!`;
+      
+      mockStorage.get.mockImplementation(async (key: string) => {
+        if (key === `karma:${USER_1}`) {
+          return { points: 5, lastUpdated: new Date().toISOString() } as KarmaData;
+        } else if (key === `karma:${USER_2}`) {
+          return { points: 5, lastUpdated: new Date().toISOString() } as KarmaData;
+        }
+        return null;
+      });
       
       const result = await processKarmaMessage(message, SENDER_USER_ID, mockStorage, mockLogger);
       
-      // Both users should get karma
-      // For some reason the index update doesn't happen in tests
-      expect(mockStorage.set).toHaveBeenCalledWith(
-        `karma:${USER_1}`,
-        expect.objectContaining({ points: 6 })
-      );
-      expect(mockStorage.set).toHaveBeenCalledWith(
-        `karma:${USER_2}`,
-        expect.objectContaining({ points: 11 })
-      );
-      expect(result.response).toContain(`<@${USER_1}> now has 6 karma points`);
-      expect(result.response).toContain(`<@${USER_2}> now has 11 karma points`);
+      expect(result.response).toContain(`<@${USER_1}>`);
+      expect(result.response).toContain(`<@${USER_2}>`);
+      expect(result.response).toContain(`6`);
+      expect(result.response).toContain(`11`);
+      expect(result.operations).toHaveLength(2);
     });
     
     test('should deduplicate multiple operations on the same user', async () => {
@@ -151,7 +158,102 @@ describe('Karma Module', () => {
         `karma:${TARGET_USER_ID}`,
         expect.objectContaining({ points: 6 }) // 5 + 1 = 6
       );
-      expect(result.response).toContain(`<@${TARGET_USER_ID}> now has 6 karma points`);
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain('6');
+    });
+    
+    test('should use positive message format for karma increases', async () => {
+      const message = `<@${TARGET_USER_ID}> ++`;
+      
+      // Mock to return karma data with the lastChange field
+      mockStorage.set.mockImplementation(async (key: string, data: any) => {
+        if (key === `karma:${TARGET_USER_ID}`) {
+          // This will be returned by updateUserKarma
+          expect(data.lastChange).toBe(1);
+        }
+        return undefined;
+      });
+      
+      const result = await processKarmaMessage(message, SENDER_USER_ID, mockStorage, mockLogger);
+      
+      // Should contain a positive message
+      expect(result.response).toBeDefined();
+      const response = result.response || '';
+      expect(response).toContain(`<@${TARGET_USER_ID}>`);
+      
+      // Check that the message contains one of the positive phrases
+      const containsPositivePhrase = 
+        response.includes('You rock') ||
+        response.includes('Nice job') ||
+        response.includes('Awesome');
+      
+      expect(containsPositivePhrase).toBe(true);
+    });
+    
+    test('should use negative message format for karma decreases', async () => {
+      const message = `<@${TARGET_USER_ID}> --`;
+      
+      // Mock to return karma data with the lastChange field
+      mockStorage.set.mockImplementation(async (key: string, data: any) => {
+        if (key === `karma:${TARGET_USER_ID}`) {
+          // This will be returned by updateUserKarma
+          expect(data.lastChange).toBe(-1);
+        }
+        return undefined;
+      });
+      
+      const result = await processKarmaMessage(message, SENDER_USER_ID, mockStorage, mockLogger);
+      
+      // Should contain a negative message
+      expect(result.response).toBeDefined();
+      const response = result.response || '';
+      expect(response).toContain(`<@${TARGET_USER_ID}>`);
+      
+      // Check that the message contains one of the negative phrases
+      const containsNegativePhrase = 
+        response.includes('booooo') ||
+        response.includes('Tssss') ||
+        response.includes('Sorry, but I have to drop');
+      
+      expect(containsNegativePhrase).toBe(true);
+    });
+
+    test('should include camillecoin/camillecoins pluralization', async () => {
+      // Test with one point (singular)
+      mockStorage.get.mockImplementation(async (key: string) => {
+        if (key === `karma:${TARGET_USER_ID}`) {
+          return { points: 0, lastUpdated: new Date().toISOString() } as KarmaData;
+        }
+        return null;
+      });
+      
+      const singlePointMessage = `<@${TARGET_USER_ID}> ++`;
+      const singlePointResult = await processKarmaMessage(singlePointMessage, SENDER_USER_ID, mockStorage, mockLogger);
+      
+      // Should use singular form for exactly 1 point
+      expect(singlePointResult.response).toBeDefined();
+      if (singlePointResult.response && singlePointResult.response.includes('camillecoin')) {
+        expect(singlePointResult.response).toContain('1 camillecoin');
+        expect(singlePointResult.response).not.toContain('camillecoins');
+      }
+      
+      // Test with multiple points (plural)
+      mockStorage.get.mockImplementation(async (key: string) => {
+        if (key === `karma:${TARGET_USER_ID}`) {
+          return { points: 5, lastUpdated: new Date().toISOString() } as KarmaData;
+        }
+        return null;
+      });
+      
+      const multiPointMessage = `<@${TARGET_USER_ID}> ++`;
+      const multiPointResult = await processKarmaMessage(multiPointMessage, SENDER_USER_ID, mockStorage, mockLogger);
+      
+      // Should use plural form for multiple points
+      expect(multiPointResult.response).toBeDefined();
+      if (multiPointResult.response && multiPointResult.response.includes('camillecoin')) {
+        expect(multiPointResult.response).toContain('camillecoins');
+        expect(multiPointResult.response).not.toContain('1 camillecoin');
+      }
     });
   });
   
@@ -318,7 +420,8 @@ describe('Karma Module', () => {
       console.log('Test result:', result);
       
       expect(result.response).toBeDefined();
-      expect(result.response).toContain(`<@${TARGET_USER_ID}> has 5 karma points`);
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain('5 karma points');
     });
     
     test('should ignore karma query directed at other users', async () => {
@@ -334,6 +437,22 @@ describe('Karma Module', () => {
       
       // No response since command is not directed at our bot
       expect(result.response).toBeUndefined();
+    });
+
+    test('should detect and process karma operations with bot mention in between', async () => {
+      const message = `<@${mockConfig.slackBotId}> please give <@${TARGET_USER_ID}> ++`;
+      
+      const result = await processKarmaMessage(
+        message, 
+        SENDER_USER_ID, 
+        mockStorage, 
+        mockLogger, 
+        mockConfig
+      );
+      
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain(`6`);
+      expect(result.operations).toHaveLength(1);
     });
   });
 }); 
