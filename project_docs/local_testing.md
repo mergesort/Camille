@@ -20,13 +20,18 @@ This guide will walk you through setting up and testing the Camille Bot locally.
 
 1. In the sidebar, navigate to "OAuth & Permissions"
 2. Scroll down to "Scopes" and add the following Bot Token Scopes:
-   - `chat:write` - Send messages as the app
-   - `reactions:read` - View emoji reactions
-   - `reactions:write` - Add emoji reactions
    - `channels:history` - View messages in public channels
+   - `chat:write` - Send messages as the app
+   - `chat:write.customize` - Send messages with a customized username and avatar
+   - `chat:write.public` - Send messages to channels the bot isn't a member of
    - `groups:history` - View messages in private channels
+   - `groups:read` - View basic information about private channels
+   - `groups:write` - Manage private channels and create new ones
    - `im:history` - View messages in direct messages
    - `mpim:history` - View messages in group direct messages
+   - `reactions:read` - View emoji reactions
+   - `reactions:write` - Add and edit emoji reactions
+   - `users:read` - View people in the workspace
 
 ## Step 2: Configure Local Environment
 
@@ -152,6 +157,7 @@ Now that you have a running server and public URL, you can configure Slack event
 5. Once verified, under "Subscribe to bot events", add the following events:
    - `message.channels` - When a message is posted to a channel
    - `message.groups` - When a message is posted to a private channel
+   - `message.im` - When a message is posted in a direct message
    - `reaction_added` - When a reaction is added to a message
    - `reaction_removed` - When a reaction is removed from a message
 6. Click "Save Changes" at the bottom of the page
