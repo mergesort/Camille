@@ -429,6 +429,64 @@ describe('Link Tracking', () => {
         expect(result.linksFound).toHaveLength(1);
         expect(result.linksFound[0]).toBe('github.com');
       });
+      
+      test('should not extract URLs from inline code blocks', async () => {
+        const message = {
+          text: 'I want to show you `https://github.com/mergesort/Camille` so you can look at the code',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should not extract URL from inline code block
+        expect(result.linksFound).toHaveLength(0);
+      });
+      
+      test('should not extract URLs from multi-line code blocks', async () => {
+        const message = {
+          text: 'Check this example code:\n```\nURL(string: https://github.com/mergesort/Camille)!\n```\nLooks good?',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should not extract URL from multi-line code block
+        expect(result.linksFound).toHaveLength(0);
+      });
+      
+      test('should still extract URLs outside of code blocks', async () => {
+        const message = {
+          text: 'Check the docs at https://github.com/mergesort/Camille and here\'s some example code: `let url = "https://example.com"`',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should only extract URL outside of code block
+        expect(result.linksFound).toHaveLength(1);
+        expect(result.linksFound[0]).toBe('https://github.com/mergesort/Camille');
+      });
+      
+      test('should handle messages with both inline and multi-line code blocks', async () => {
+        const message = {
+          text: 'Real link: github.com and code examples: `https://example.com` and ```\nvar url = "https://test.com";\n```',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should only extract real URL outside of code blocks
+        expect(result.linksFound).toHaveLength(1);
+        expect(result.linksFound[0]).toBe('github.com');
+      });
     });
   });
   

@@ -11,7 +11,7 @@ import { storeLink, getLinkData, LinkData, normalizeUrl, LINK_KEY_PREFIX } from 
 // URL detection regex - improved to better match URLs and avoid trailing characters
 // This regex handles both URLs with protocols (http/https) and domain-only formats (example.com)
 // Increased the TLD character limit from {1,6} to {1,63} to match the DNS specification
-const URL_REGEX = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+export const URL_REGEX = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
 
 // Hosts that are allowlisted and shouldn't trigger "previously shared" notifications
 export const ALLOWLISTED_HOSTS = [
@@ -246,7 +246,30 @@ export async function processMessageLinks(
  * Extract links from message text
  */
 function extractLinks(text: string): string[] {
-  const potentialLinks = text.match(URL_REGEX) || [];
+  // First, identify code blocks and create a version of the text with URLs in code blocks removed
+  // This will preserve the original text structure for regex matching, but prevent URLs in code blocks from being extracted
+  
+  // Handle multi-line code blocks (```code```)
+  let processedText = text;
+  const multiLineCodeBlockRegex = /```[\s\S]*?```/g;
+  const multiLineCodeBlocks = processedText.match(multiLineCodeBlockRegex) || [];
+  
+  multiLineCodeBlocks.forEach(block => {
+    // Replace the content of the code block with spaces to maintain string length and positions
+    processedText = processedText.replace(block, ' '.repeat(block.length));
+  });
+  
+  // Handle inline code blocks (`code`)
+  const inlineCodeBlockRegex = /`[^`]*?`/g;
+  const inlineCodeBlocks = processedText.match(inlineCodeBlockRegex) || [];
+  
+  inlineCodeBlocks.forEach(block => {
+    // Replace the content of the code block with spaces to maintain string length and positions
+    processedText = processedText.replace(block, ' '.repeat(block.length));
+  });
+  
+  // Now extract URLs from the processed text (with code blocks "removed")
+  const potentialLinks = processedText.match(URL_REGEX) || [];
   
   // Filter out matches that are part of karma commands or numeric patterns
   const filteredLinks = potentialLinks.filter(link => {
