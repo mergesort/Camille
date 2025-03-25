@@ -289,6 +289,147 @@ describe('Link Tracking', () => {
         })
       );
     });
+
+    describe('Link Extraction', () => {
+      test('should not extract decimal numbers in karma commands as links', async () => {
+        const message = {
+          text: '<@U12345> += 11.4 and <@U67890> -= 2.6',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should not find any links in this message
+        expect(result.linksFound).toHaveLength(0);
+        expect(mockKVStore.set).not.toHaveBeenCalled();
+      });
+      
+      test('should not extract date-like or version formats as links', async () => {
+        const message = {
+          text: 'This release is version 24.07.26 and will be deployed tomorrow',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should not find any links in this message
+        expect(result.linksFound).toHaveLength(0);
+        expect(mockKVStore.set).not.toHaveBeenCalled();
+      });
+      
+      test('should not extract IP-like formats as links', async () => {
+        const message = {
+          text: 'The server IP is 192.168.0.1 and the alternate is 10.0.0.1',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should not find any links in this message as they're IPs
+        expect(result.linksFound).toHaveLength(0);
+        expect(mockKVStore.set).not.toHaveBeenCalled();
+      });
+      
+      test('should not extract numeric patterns like 11.4.0', async () => {
+        const message = {
+          text: 'We just upgraded to version 11.4.0 from 10.3.2',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should not find any links in this message
+        expect(result.linksFound).toHaveLength(0);
+        expect(mockKVStore.set).not.toHaveBeenCalled();
+      });
+      
+      test('should still extract valid domain names with numeric components', async () => {
+        const message = {
+          text: 'Visit 123.io and 456.com for more information',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should find these as they are valid domains with proper TLDs
+        expect(result.linksFound).toHaveLength(2);
+        expect(result.linksFound).toContain('123.io');
+        expect(result.linksFound).toContain('456.com');
+      });
+      
+      test('should extract domains with newer or less common TLDs', async () => {
+        const message = {
+          text: 'Check out plinky.ai and redpanda.club and my website at example.xyz',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should find all three domains with different TLDs
+        expect(result.linksFound).toHaveLength(3);
+        expect(result.linksFound).toContain('plinky.ai');
+        expect(result.linksFound).toContain('redpanda.club');
+        expect(result.linksFound).toContain('example.xyz');
+      });
+      
+      test('should handle country-specific TLDs and numeric subdomain parts', async () => {
+        const message = {
+          text: 'Sites to check: gov.uk, 123.music.jp, and web3.foundation',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should find all three domains
+        expect(result.linksFound).toHaveLength(3);
+        expect(result.linksFound).toContain('gov.uk');
+        expect(result.linksFound).toContain('123.music.jp');
+        expect(result.linksFound).toContain('web3.foundation');
+      });
+      
+      test('should not extract IP-like formats from karma commands but should extract real IPs', async () => {
+        const message = {
+          text: '<@U12345> += 24.7.0.26 and a real IP address is 192.168.1.1',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should not extract any IP addresses as links
+        expect(result.linksFound).toHaveLength(0);
+      });
+      
+      test('should handle mixed content with karma commands and real links', async () => {
+        const message = {
+          text: '<@U12345> += 11.4 points for sharing github.com and <@U67890> -= 2.6',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should find only the GitHub link
+        expect(result.linksFound).toHaveLength(1);
+        expect(result.linksFound[0]).toBe('github.com');
+      });
+    });
   });
   
   describe('processMessageDeletion', () => {

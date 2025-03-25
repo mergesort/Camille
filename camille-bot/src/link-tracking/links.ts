@@ -10,7 +10,8 @@ import { storeLink, getLinkData, LinkData, normalizeUrl, LINK_KEY_PREFIX } from 
 
 // URL detection regex - improved to better match URLs and avoid trailing characters
 // This regex handles both URLs with protocols (http/https) and domain-only formats (example.com)
-const URL_REGEX = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+// Increased the TLD character limit from {1,6} to {1,63} to match the DNS specification
+const URL_REGEX = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
 
 // Hosts that are allowlisted and shouldn't trigger "previously shared" notifications
 export const ALLOWLISTED_HOSTS = [
@@ -245,10 +246,57 @@ export async function processMessageLinks(
  * Extract links from message text
  */
 function extractLinks(text: string): string[] {
-  const links = text.match(URL_REGEX) || [];
+  const potentialLinks = text.match(URL_REGEX) || [];
+  
+  // Filter out matches that are part of karma commands or numeric patterns
+  const filteredLinks = potentialLinks.filter(link => {
+    // Check if this "link" is preceded by += or -= (part of a karma command)
+    // This matches both simple decimal numbers (11.4) and IP-like formats (24.7.0.26)
+    const karmaCommandRegex = /(?:^|\s)<@[A-Z0-9]+(?:\|[^>]+)?>\s*[\+\-]=\s*([0-9]+(?:\.[0-9]+(?:\.[0-9]+(?:\.[0-9]+)?)?)?)/g;
+    let match;
+    
+    while ((match = karmaCommandRegex.exec(text)) !== null) {
+      // If this potential link is actually a number part of karma command, skip it
+      if (match[1] === link) {
+        return false;
+      }
+      
+      // Special case for IP-like formats
+      if (link.match(/^\d+\.\d+/) && match[1].startsWith(link)) {
+        return false;
+      }
+    }
+    
+    // Filter out purely numeric patterns that look like dates or IPs
+    // This handles standalone numbers like "24.07.26" or "1.2.3.4"
+    if (/^[0-9]+(\.[0-9]+)+$/.test(link)) {
+      // Check if this resembles a valid domain name vs a numeric pattern
+      const parts = link.split('.');
+      const lastPart = parts[parts.length - 1];
+      
+      // Valid domain characteristics:
+      // 1. TLD (last part) usually contains letters
+      // 2. Full numeric TLDs are rare in legitimate domains
+      // 3. TLDs usually aren't very long numbers (like 1.2.345)
+      // 4. Most parts of an IP or version number are numeric
+      
+      // Check if all parts are numeric (likely an IP or version number)
+      const allPartsNumeric = parts.every(part => /^[0-9]+$/.test(part));
+      
+      // Check if the TLD contains any letters (legitimate TLDs usually do)
+      const tldHasLetters = /[a-z]/i.test(lastPart);
+      
+      // If it looks like an all-numeric pattern (IP, version, date) and the TLD doesn't have letters
+      if (allPartsNumeric && !tldHasLetters) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
   
   // De-duplicate links
-  return Array.from(new Set(links));
+  return Array.from(new Set(filteredLinks));
 }
 
 /**

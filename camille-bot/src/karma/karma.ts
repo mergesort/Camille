@@ -15,8 +15,8 @@ import { KARMA_KEY_PREFIX } from "./storage";
 // Regular expressions for karma operations (don't depend on bot ID)
 const INCREMENT_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*\+\+/g;
 const DECREMENT_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*--/g;
-const ADD_KARMA_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*\+=\s*(\d+)/g;
-const SUBTRACT_KARMA_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*-=\s*(\d+)/g;
+const ADD_KARMA_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*\+=\s*(\d+(?:\.\d+)?)/g;
+const SUBTRACT_KARMA_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*-=\s*(\d+(?:\.\d+)?)/g;
 
 // These regexes will be initialized with the bot ID when available
 let KARMA_QUERY_REGEX: RegExp | null = null;
@@ -212,7 +212,8 @@ function extractKarmaOperations(message: string, senderUserId: string): KarmaOpe
   ADD_KARMA_REGEX.lastIndex = 0;
   while ((match = ADD_KARMA_REGEX.exec(message)) !== null) {
     const targetUserId = match[1];
-    const points = Math.min(parseInt(match[2], 10), MAX_KARMA_CHANGE);
+    // Floor the decimal value and cap at MAX_KARMA_CHANGE
+    const points = Math.min(Math.floor(parseFloat(match[2])), MAX_KARMA_CHANGE);
     
     // Prevent self-karma and duplicates
     if (targetUserId !== senderUserId && !processedUsers.has(targetUserId)) {
@@ -225,7 +226,8 @@ function extractKarmaOperations(message: string, senderUserId: string): KarmaOpe
   SUBTRACT_KARMA_REGEX.lastIndex = 0;
   while ((match = SUBTRACT_KARMA_REGEX.exec(message)) !== null) {
     const targetUserId = match[1];
-    const points = Math.min(parseInt(match[2], 10), MAX_KARMA_CHANGE);
+    // Floor the decimal value and cap at MAX_KARMA_CHANGE
+    const points = Math.min(Math.floor(parseFloat(match[2])), MAX_KARMA_CHANGE);
     
     // Prevent self-karma and duplicates
     if (targetUserId !== senderUserId && !processedUsers.has(targetUserId)) {

@@ -255,6 +255,78 @@ describe('Karma Module', () => {
         expect(multiPointResult.response).not.toContain('1 camillecoin');
       }
     });
+
+    test('should handle decimal numbers in add karma operations by rounding down', async () => {
+      const message = `<@${TARGET_USER_ID}> += 11.4`;
+      
+      const result = await processKarmaMessage(
+        message,
+        SENDER_USER_ID,
+        mockStorage,
+        mockLogger
+      );
+      
+      // Should floor the decimal (11.4 -> 11) and cap at 10 if needed
+      expect(mockStorage.set).toHaveBeenCalledWith(
+        `karma:${TARGET_USER_ID}`,
+        expect.objectContaining({ points: 15 }) // 5 + 10 = 15 (capped at 10)
+      );
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain('15');
+    });
+    
+    test('should handle decimal numbers in subtract karma operations by rounding down', async () => {
+      const message = `<@${TARGET_USER_ID}> -= 2.6`;
+      
+      const result = await processKarmaMessage(
+        message,
+        SENDER_USER_ID,
+        mockStorage,
+        mockLogger
+      );
+      
+      // Should floor the decimal (2.6 -> 2)
+      expect(mockStorage.set).toHaveBeenCalledWith(
+        `karma:${TARGET_USER_ID}`,
+        expect.objectContaining({ points: 3 }) // 5 - 2 = 3
+      );
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain('3');
+    });
+    
+    test('should handle zero decimal part in karma operations', async () => {
+      const message = `<@${TARGET_USER_ID}> += 5.0`;
+      
+      const result = await processKarmaMessage(
+        message,
+        SENDER_USER_ID,
+        mockStorage,
+        mockLogger
+      );
+      
+      // 5.0 should be treated as 5
+      expect(mockStorage.set).toHaveBeenCalledWith(
+        `karma:${TARGET_USER_ID}`,
+        expect.objectContaining({ points: 10 }) // 5 + 5 = 10
+      );
+      expect(result.response).toContain(`<@${TARGET_USER_ID}>`);
+      expect(result.response).toContain('10');
+    });
+    
+    test('should handle IP-like number sequences and not treat them as decimal karma operations', async () => {
+      const message = `Check out this IP address: 24.7.0.26`;
+      
+      const result = await processKarmaMessage(
+        message,
+        SENDER_USER_ID,
+        mockStorage,
+        mockLogger
+      );
+      
+      // Should not match as a karma operation (this is an IP, not a karma command)
+      expect(result.operations).toBeUndefined();
+      expect(result.response).toBeUndefined();
+    });
   });
   
   describe('Leaderboard', () => {
