@@ -183,7 +183,7 @@ describe('X/Twitter Transformer Module', () => {
   describe('Regex testing', () => {
     test('regex should match x.com and twitter.com URLs', () => {
       // This is the regex pattern from the module
-      const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?(twitter\.com|x\.com)(?:\/[^\s]*)?/gi;
+      const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?\b(twitter\.com|x\.com)\b(?:\/[^\s]*)?/gi;
       
       // Simple message with X/Twitter links
       const message = 'Check these: https://x.com and also https://twitter.com and x.com';
@@ -196,6 +196,36 @@ describe('X/Twitter Transformer Module', () => {
       expect(matches).toContain('https://x.com');
       expect(matches).toContain('https://twitter.com');
       expect(matches).toContain('x.com');
+    });
+    
+    test('should not match domains that contain x.com or twitter.com as substrings', () => {
+      // This is the regex pattern from the module
+      const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?\b(twitter\.com|x\.com)\b(?:\/[^\s]*)?/gi;
+      
+      // Message with domains that shouldn't match
+      const message = 'Check these: https://netflix.com and also https://phoenix.com and fxtwitter.com and mytwitter.com';
+      
+      // Use the regex to find matches
+      const matches = [...message.matchAll(new RegExp(X_TWITTER_URL_REGEX))].map(m => m[0]);
+      
+      // Verify that we didn't find any matches
+      expect(matches).toHaveLength(0);
+    });
+    
+    test('should match x.com and twitter.com with subdirectories', () => {
+      // This is the regex pattern from the module
+      const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?\b(twitter\.com|x\.com)\b(?:\/[^\s]*)?/gi;
+      
+      // Message with domains that have subdirectories
+      const message = 'Check these: https://x.com/profile/123 and also https://twitter.com/username/status/456';
+      
+      // Use the regex to find matches
+      const matches = [...message.matchAll(new RegExp(X_TWITTER_URL_REGEX))].map(m => m[0]);
+      
+      // Verify that we found the correct matches
+      expect(matches).toHaveLength(2);
+      expect(matches).toContain('https://x.com/profile/123');
+      expect(matches).toContain('https://twitter.com/username/status/456');
     });
   });
 }); 

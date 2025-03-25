@@ -7,10 +7,9 @@
 import { Logger } from '../shared/logging/logger';
 import { Config } from '../shared/config/config';
 import { KVStore } from '../shared/storage/kv-store';
+import { X_TWITTER_URL_REGEX } from '../shared/regex/patterns';
 
 // Regex for detecting X/Twitter links
-// This matches URLs with or without protocol, with or without www, and captures the path
-const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?(twitter\.com|x\.com)(?:\/[^\s]*)?/gi;
 
 /**
  * Result from processing a message for X/Twitter links

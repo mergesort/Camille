@@ -55,8 +55,9 @@ export const EXTENDED_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~
 /**
  * X/Twitter URL regex pattern
  * Matches URLs from twitter.com or x.com domains
+ * Uses word boundaries to ensure exact domain matching
  */
-export const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?(twitter\.com|x\.com)(?:\/[^\s]*)?/gi;
+export const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?\b(twitter\.com|x\.com)\b(?:\/[^\s]*)?/gi;
 
 // ============================
 // KARMA PATTERNS
