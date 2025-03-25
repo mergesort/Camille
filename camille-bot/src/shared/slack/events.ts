@@ -12,8 +12,8 @@ import { processKarmaMessage } from '../../karma';
 import { processMessageLinks, processMessageDeletion } from '../../link-tracking';
 import { processHelpCommand } from '../../help';
 import { processGreeting } from '../../greetings';
-import { processMessageForAutoResponse } from '../../auto-responder';
-import { processXLinks } from '../../x-transformer';
+import { processMessageForAutoResponse } from '../../auto-responder/auto-responder';
+import { processXLinks } from '../../x-transformer/x-transformer';
 
 export interface SlackEventHandlerOptions {
   logger: Logger;
@@ -122,8 +122,13 @@ async function handleMessageEvent(
 ): Promise<void> {
   const { logger, storage, config } = options;
   
-  // Skip bot messages and message_changed events
-  if (event.bot_id || event.subtype === 'message_changed') {
+  // Skip processing if no text
+  if (!event.text) {
+    return;
+  }
+
+  // Skip processing bot messages to avoid loops
+  if (event.bot_id || event.subtype === 'bot_message') {
     return;
   }
   
