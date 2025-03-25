@@ -285,6 +285,7 @@ async function handleMessageEvent(
       await sendSlackMessage({
         channel: event.channel,
         text: karmaResult.response,
+        ...(event.thread_ts ? { thread_ts: event.thread_ts } : {}), // Only include thread_ts when in a thread
         token: config.slackApiToken
       });
       
