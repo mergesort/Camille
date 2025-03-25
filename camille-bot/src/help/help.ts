@@ -73,5 +73,6 @@ function formatHelpMessage(): string {
 • You cannot give karma to yourself
 • You can only apply one karma operation per user in a message
 • Multiple karma modification operations in one message are supported (for different users)
+• If you want to give karma privately, you can run Camille's commands in your DM with Camille
 `.trim();
 } 
