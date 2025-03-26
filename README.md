@@ -31,7 +31,6 @@ Camille is an extensible Slack bot designed to enhance community management and 
 ### Prerequisites
 - Node.js (latest LTS version)
 - npm
-- [ngrok](https://ngrok.com/) for local development
 - A Slack workspace where you can create apps
 
 ### Installation
