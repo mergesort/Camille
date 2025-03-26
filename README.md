@@ -52,28 +52,26 @@ cp .dev.vars.example .dev.vars
 cp wrangler.toml.example.toml wrangler.dev.toml
 ```
 
-- Update the configuration values (see Configuration section below)
+4. Edit required configuration values:
 
-4. Set up your development environment:
-```bash
-npm run setup-dev-kv
-```
-
-5. Start the development server:
-```bash
-npm run dev-local
-```
-
-For more detailed instructions, see: [Local Testing](/project_docs/local_testing.md)
-
-### Configuration
-
-Required environment variables:
 - `API_HOST`: The host URL for the API
 - `SLACK_API_TOKEN`: Slack Bot User OAuth Token
 - `SLACK_BOT_ID`: The bot's Slack User ID
 - `SLACK_COMMUNITY_ID`: Your Slack workspace ID
 - `SLACK_SIGNING_SECRET`: Slack signing secret for request verification
+
+
+5. Set up your development environment:
+```bash
+npm run setup-dev-kv
+```
+
+6. Start the development server:
+```bash
+npm run dev-local
+```
+
+For more detailed instructions, see: [Local Testing](/project_docs/local_testing.md)
 
 ## Documentation
 
