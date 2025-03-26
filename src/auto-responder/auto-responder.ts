@@ -3,10 +3,7 @@
  *
  * Detects trigger phrases like "hey guys" and responds with documentation links.
  */
-
-import { Logger } from '../shared/logging/logger';
-import { Config } from '../shared/config/config';
-import { KVStore } from '../shared/storage/kv-store';
+import { getLogger } from '../shared/context/app-context';
 
 // Define trigger phrases to detect
 const TRIGGER_PATTERNS = [
@@ -36,10 +33,10 @@ export interface AutoResponderResult {
  */
 export async function processMessageForAutoResponse(
   messageText: string,
-  userId: string,
-  logger: Logger,
-  config: Config
+  userId: string
 ): Promise<AutoResponderResult> {
+  const logger = getLogger();
+
   try {
     logger.debug('Processing message for auto-response', { 
       textPreview: messageText.substring(0, 50),

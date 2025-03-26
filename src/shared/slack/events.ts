@@ -15,18 +15,14 @@ import { processGreeting } from '../../greetings';
 import { processMessageForAutoResponse } from '../../auto-responder/auto-responder';
 import { processXLinks } from '../../x-transformer/x-transformer';
 import { sendSlackMessage, sendSlackEphemeralMessage, addSlackReaction } from './messaging';
-
-export interface SlackEventHandlerOptions {
-  logger: Logger;
-  config: Config;
-  storage: KVStore;
-}
+import { getLogger, getConfig, getStorage } from '../context/app-context';
 
 export async function handleSlackEvent(
-  request: Request,
-  options: SlackEventHandlerOptions
+  request: Request
 ): Promise<Response> {
-  const { logger, config, storage } = options;
+  const logger = getLogger();
+  const config = getConfig();
+  const storage = getStorage();
   
   try {
     // Get headers for signature verification
@@ -90,12 +86,12 @@ export async function handleSlackEvent(
     
     // Process message events
     if (body.event?.type === 'message' && body.event?.text) {
-      await handleMessageEvent(body.event, options);
+      await handleMessageEvent(body.event);
     }
     
     // Process message deletion events
     if (body.event?.type === 'message' && body.event?.subtype === 'message_deleted') {
-      await handleMessageDeletion(body.event, options);
+      await handleMessageDeletion(body.event);
     }
     
     return new Response("Event received", {
@@ -118,10 +114,11 @@ export async function handleSlackEvent(
  * Handle a message event from Slack
  */
 async function handleMessageEvent(
-  event: any,
-  options: SlackEventHandlerOptions
+  event: any
 ): Promise<void> {
-  const { logger, storage, config } = options;
+  const logger = getLogger();
+  const storage = getStorage();
+  const config = getConfig();
   
   // Skip processing if no text
   if (!event.text) {
@@ -141,10 +138,7 @@ async function handleMessageEvent(
     }
     
     // Process for X/Twitter links
-    const xLinksResult = await processXLinks(
-      event.text,
-      logger
-    );
+    const xLinksResult = await processXLinks(event.text);
     
     // If there are X/Twitter links, transform and reply with xcancel links
     if (xLinksResult.hasXLinks && xLinksResult.transformedLinks.length > 0) {
@@ -172,12 +166,7 @@ async function handleMessageEvent(
     }
     
     // Process for help command
-    const helpResult = await processHelpCommand(
-      event.text,
-      storage,
-      logger,
-      config
-    );
+    const helpResult = await processHelpCommand(event.text);
     
     // If there's a help response, send it back to the channel
     if (helpResult.response) {
@@ -199,12 +188,7 @@ async function handleMessageEvent(
     }
     
     // Process for greetings
-    const greetingResult = await processGreeting(
-      event.text,
-      event.user,
-      logger,
-      config
-    );
+    const greetingResult = await processGreeting(event.text, event.user);
     
     // If it's a greeting, add a wave reaction
     if (greetingResult.isGreeting && greetingResult.shouldAddReaction) {
@@ -240,12 +224,7 @@ async function handleMessageEvent(
     }
     
     // Process for auto-responder
-    const autoResponderResult = await processMessageForAutoResponse(
-      event.text,
-      event.user,
-      logger,
-      config
-    );
+    const autoResponderResult = await processMessageForAutoResponse(event.text, event.user);
     
     // If there's an auto-response, send it back as a thread
     if (autoResponderResult.shouldRespond && autoResponderResult.response) {
@@ -266,13 +245,7 @@ async function handleMessageEvent(
     }
     
     // Process for karma operations
-    const karmaResult = await processKarmaMessage(
-      event.text,
-      event.user,
-      storage,
-      logger,
-      config
-    );
+    const karmaResult = await processKarmaMessage(event.text, event.user);
     
     // Debug log raw message text to help diagnose issues
     logger.debug('Message for karma processing', { 
@@ -311,18 +284,14 @@ async function handleMessageEvent(
     }
     
     // Process links in the message
-    const linkResult = await processMessageLinks(
-      {
-        text: event.text,
-        ts: event.ts,
-        channel: event.channel,
-        user: event.user,
-        thread_ts: event.thread_ts,
-        permalink: event.permalink // This might not be provided directly by Slack
-      },
-      storage,
-      logger
-    );
+    const linkResult = await processMessageLinks({
+      text: event.text,
+      ts: event.ts,
+      channel: event.channel,
+      user: event.user,
+      thread_ts: event.thread_ts,
+      permalink: event.permalink // This might not be provided directly by Slack
+    });
     
     // If there's a link context response, send it back to the channel
     if (linkResult.response) {
@@ -352,10 +321,10 @@ async function handleMessageEvent(
  * Handle a message deletion event from Slack
  */
 async function handleMessageDeletion(
-  event: any,
-  options: SlackEventHandlerOptions
+  event: any
 ): Promise<void> {
-  const { logger, storage } = options;
+  const logger = getLogger();
+  const storage = getStorage();
   
   try {
     logger.debug('Processing message deletion event', {
@@ -365,15 +334,11 @@ async function handleMessageDeletion(
     });
     
     // Process the message deletion to clean up any links
-    await processMessageDeletion(
-      {
-        ts: event.ts,
-        channel: event.channel,
-        previous_message: event.previous_message
-      },
-      storage,
-      logger
-    );
+    await processMessageDeletion({
+      ts: event.ts,
+      channel: event.channel,
+      previous_message: event.previous_message
+    });
     
   } catch (error) {
     logger.error(

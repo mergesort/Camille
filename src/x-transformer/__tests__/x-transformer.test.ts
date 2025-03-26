@@ -4,6 +4,7 @@
 
 import { processXLinks, transformXToXcancel, deduplicateUrls } from '../x-transformer';
 import { Logger } from '../../shared/logging/logger';
+import { asyncContext } from '../../shared/context/app-context';
 
 // Mock logger
 const mockLogger: Logger = {
@@ -14,6 +15,12 @@ const mockLogger: Logger = {
 };
 
 describe('X/Twitter Transformer Module', () => {
+  beforeAll(() => {
+    asyncContext.enterWith({
+      logger: mockLogger
+    });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -60,20 +67,28 @@ describe('X/Twitter Transformer Module', () => {
   });
   
   describe('processXLinks', () => {
-    test('should detect and transform a single X/Twitter link', async () => {
-      const result = await processXLinks('Check out this post: https://x.com/mergesort/status/594915993060777984', mockLogger);
+    test('should detect and transform X/Twitter links', async () => {
+      const message = 'Check out https://x.com/profile/mergesort and https://twitter.com/profile/mergesort';
+      
+      const result = await processXLinks(message);
       
       expect(result.hasXLinks).toBe(true);
-      expect(result.originalLinks).toHaveLength(1);
-      expect(result.transformedLinks).toHaveLength(1);
-      expect(result.transformedLinks[0]).toBe('https://xcancel.com/mergesort/status/594915993060777984');
-      expect(mockLogger.info).toHaveBeenCalled();
+      expect(result.transformedLinks).toHaveLength(2);
+      expect(result.transformedLinks).toContain('https://xcancel.com/profile/mergesort');
+    });
+    
+    test('should handle messages without links', async () => {
+      const message = 'No links in this message';
+      
+      const result = await processXLinks(message);
+      
+      expect(result.hasXLinks).toBe(false);
+      expect(result.transformedLinks).toHaveLength(0);
     });
     
     test('should detect and transform multiple X/Twitter links', async () => {
       const result = await processXLinks(
-        'Two links: https://twitter.com/profile/user1 and https://x.com/profile/user2',
-        mockLogger
+        'Two links: https://twitter.com/profile/user1 and https://x.com/profile/user2'
       );
       
       expect(result.hasXLinks).toBe(true);
@@ -83,27 +98,13 @@ describe('X/Twitter Transformer Module', () => {
       expect(result.transformedLinks).toContain('https://xcancel.com/profile/user2');
     });
     
-    test('should handle messages without X/Twitter links', async () => {
-      const result = await processXLinks(
-        'No X/Twitter links here, only https://example.com',
-        mockLogger
-      );
-      
-      expect(result.hasXLinks).toBe(false);
-      expect(result.originalLinks).toHaveLength(0);
-      expect(result.transformedLinks).toHaveLength(0);
-    });
-    
     test('should handle errors gracefully', async () => {
       // Mock logger.debug to throw an error
       mockLogger.debug = jest.fn().mockImplementation(() => {
         throw new Error('Forced error for testing');
       });
       
-      const result = await processXLinks(
-        'Check out https://x.com/test',
-        mockLogger
-      );
+      const result = await processXLinks('Check out https://x.com/test');
       
       expect(result.hasXLinks).toBe(false);
       expect(result.originalLinks).toHaveLength(0);

@@ -3,10 +3,7 @@
  *
  * Provides documentation for available bot commands
  */
-
-import { Logger } from '../shared/logging/logger';
-import { KVStore } from '../shared/storage/kv-store';
-import { Config } from '../shared/config/config';
+import { getLogger, getConfig } from '../shared/context/app-context';
 
 // This will only be initialized when a specific bot ID is provided
 let HELP_COMMAND_REGEX: RegExp | null = null;
@@ -16,10 +13,10 @@ let HELP_COMMAND_REGEX: RegExp | null = null;
  */
 export async function processHelpCommand(
   message: string,
-  storage: KVStore,
-  logger: Logger,
-  config: Config
 ): Promise<{ response?: string }> {
+  const logger = getLogger();
+  const config = getConfig();
+
   logger.debug('Checking for help command', { messagePreview: message.substring(0, 50) });
   
   // Initialize the regex if we have a bot ID and it hasn't been initialized yet

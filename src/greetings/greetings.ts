@@ -3,10 +3,7 @@
  *
  * This module handles greeting responses when users directly greet the bot.
  */
-
-import { Logger } from '../shared/logging/logger';
-import { Config } from '../shared/config/config';
-import { KVStore } from '../shared/storage/kv-store';
+import { getLogger, getConfig } from '../shared/context/app-context';
 
 // Greeting words to detect
 const GREETING_PATTERNS = [
@@ -43,9 +40,10 @@ export interface GreetingResult {
 export async function processGreeting(
   messageText: string,
   userId: string,
-  logger: Logger,
-  config: Config
 ): Promise<GreetingResult> {
+  const logger = getLogger();
+  const config = getConfig();
+
   try {
     logger.debug('Processing message for greetings', { 
       textPreview: messageText.substring(0, 50),

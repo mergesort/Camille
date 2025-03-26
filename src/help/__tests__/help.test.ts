@@ -2,12 +2,22 @@ import { processHelpCommand } from '../help';
 import { KVStore } from '../../shared/storage/kv-store';
 import { Logger } from '../../shared/logging/logger';
 import { Config } from '../../shared/config/config';
+import { asyncContext } from '../../shared/context/app-context';
 
 describe('Help Module', () => {
   // Mock dependencies
   let mockStorage: jest.Mocked<KVStore>;
   let mockLogger: jest.Mocked<Logger>;
+  const mockConfig = {} as Config;
   
+  beforeAll(() => {
+    asyncContext.enterWith({
+      logger: mockLogger,
+      config: mockConfig,
+      storage: mockStorage
+    });
+  });
+
   beforeEach(() => {
     // Setup mocks
     mockStorage = {
@@ -25,12 +35,10 @@ describe('Help Module', () => {
   });
   
   describe('Help Command', () => {
-    const emptyConfig = {} as Config;
-    
     test('should detect "@camille help" command', async () => {
       const message = '<@U12345|camille> help';
       
-      const result = await processHelpCommand(message, mockStorage, mockLogger, emptyConfig);
+      const result = await processHelpCommand(message);
       
       expect(result.response).toBeDefined();
       expect(result.response).toContain('Available Commands');
@@ -40,7 +48,7 @@ describe('Help Module', () => {
     test('should not detect standalone "help" command', async () => {
       const message = 'help';
       
-      const result = await processHelpCommand(message, mockStorage, mockLogger, emptyConfig);
+      const result = await processHelpCommand(message);
       
       expect(result.response).toBeUndefined();
     });
@@ -48,7 +56,7 @@ describe('Help Module', () => {
     test('should not detect help command within other text', async () => {
       const message = 'I need help with something';
       
-      const result = await processHelpCommand(message, mockStorage, mockLogger, emptyConfig);
+      const result = await processHelpCommand(message);
       
       expect(result.response).toBeUndefined();
     });
@@ -56,7 +64,7 @@ describe('Help Module', () => {
     test('should include all command categories in help message', async () => {
       const message = '<@U12345|camille> help';
       
-      const result = await processHelpCommand(message, mockStorage, mockLogger, emptyConfig);
+      const result = await processHelpCommand(message);
       
       expect(result.response).toBeDefined();
       expect(result.response).toContain('Karma System');
@@ -67,7 +75,7 @@ describe('Help Module', () => {
     test('help message should include karma commands', async () => {
       const message = '<@U12345|camille> help';
       
-      const result = await processHelpCommand(message, mockStorage, mockLogger, emptyConfig);
+      const result = await processHelpCommand(message);
       
       expect(result.response).toBeDefined();
       expect(result.response).toContain('@username++');
@@ -91,9 +99,6 @@ describe('Help Module', () => {
       
       const result = await processHelpCommand(
         message, 
-        mockStorage, 
-        mockLogger, 
-        mockConfig
       );
       
       expect(result.response).toBeDefined();
@@ -105,9 +110,6 @@ describe('Help Module', () => {
       
       const result = await processHelpCommand(
         message, 
-        mockStorage, 
-        mockLogger, 
-        mockConfig
       );
       
       // No response since command is not directed at our bot

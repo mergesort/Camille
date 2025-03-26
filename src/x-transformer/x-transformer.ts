@@ -5,11 +5,8 @@
  */
 
 import { Logger } from '../shared/logging/logger';
-import { Config } from '../shared/config/config';
-import { KVStore } from '../shared/storage/kv-store';
 import { X_TWITTER_URL_REGEX } from '../shared/regex/patterns';
-
-// Regex for detecting X/Twitter links
+import { getLogger } from '../shared/context/app-context';
 
 /**
  * Result from processing a message for X/Twitter links
@@ -29,9 +26,10 @@ export interface XTransformerResult {
  * Process a message to detect X/Twitter links and transform them to xcancel.com
  */
 export async function processXLinks(
-  messageText: string,
-  logger: Logger
+  messageText: string
 ): Promise<XTransformerResult> {
+  const logger = getLogger();
+
   try {
     logger.debug('Processing message for X/Twitter links', { 
       textPreview: messageText.substring(0, 50)

@@ -19,6 +19,7 @@ import {
   createKarmaQueryRegex,
   createLeaderboardRegex
 } from '../shared/regex/patterns';
+import { getLogger, getConfig, getStorage } from '../shared/context/app-context';
 
 // These regexes will be initialized with the bot ID when available
 let KARMA_QUERY_REGEX: RegExp | null = null;
@@ -84,11 +85,12 @@ export function initializeRegexes(config?: Config, logger?: Logger): void {
  */
 export async function processKarmaMessage(
   message: string,
-  userId: string,
-  storage: KVStore,
-  logger: Logger,
-  config?: Config
+  userId: string
 ): Promise<{ response?: string; operations?: KarmaOperation[]; selfKarmaAttempt?: boolean }> {
+  const logger = getLogger();
+  const storage = getStorage();
+  const config = getConfig();
+
   logger.debug('Processing message for karma operations', { 
     messagePreview: message.substring(0, 50),
     hasBotId: config?.slackBotId ? true : false,
@@ -113,7 +115,7 @@ export async function processKarmaMessage(
         targetUserId,
         messagePreview: message.substring(0, 50)
       });
-      return await handleKarmaQuery(targetUserId, storage, logger);
+      return await handleKarmaQuery(targetUserId);
     }
   } else {
     logger.debug('Message did not match karma query regex', {
@@ -128,7 +130,7 @@ export async function processKarmaMessage(
       messagePreview: message.substring(0, 50),
       regex: LEADERBOARD_REGEX.toString()
     });
-    return await handleLeaderboardRequest(storage, logger);
+    return await handleLeaderboardRequest();
   } else {
     logger.debug('Message did not match leaderboard regex', {
       messagePreview: message.substring(0, 100),
@@ -148,7 +150,7 @@ export async function processKarmaMessage(
   }
   
   // Apply all operations
-  const results = await applyKarmaOperations(operations, userId, storage, logger);
+  const results = await applyKarmaOperations(operations, userId);
   
   // Prepare response
   return {
@@ -237,12 +239,12 @@ function extractKarmaOperations(message: string, senderUserId: string): KarmaOpe
  */
 async function applyKarmaOperations(
   operations: KarmaOperation[],
-  updatedBy: string,
-  storage: KVStore,
-  logger: Logger
+  updatedBy: string
 ): Promise<Map<string, KarmaData>> {
   const results = new Map<string, KarmaData>();
-  
+  const logger = getLogger();
+  const storage = getStorage();
+
   for (const op of operations) {
     try {
       const result = await updateUserKarma(
@@ -255,21 +257,18 @@ async function applyKarmaOperations(
       results.set(op.targetUserId, result);
       logger.debug('Updated karma', { 
         targetUser: op.targetUserId, 
-        change: op.change, 
-        newTotal: result.points 
+        change: op.change,
+        newPoints: result.points
       });
     } catch (error) {
       logger.error(
         'Error updating karma', 
         error instanceof Error ? error : new Error(String(error)),
-        { 
-          targetUserId: op.targetUserId,
-          change: op.change
-        }
+        { targetUser: op.targetUserId }
       );
     }
   }
-  
+
   return results;
 }
 
@@ -323,10 +322,11 @@ function getKarmaChangeMessage(userId: string, points: number, change: number): 
  * Handle a karma query for a specific user
  */
 async function handleKarmaQuery(
-  targetUserId: string,
-  storage: KVStore,
-  logger: Logger
+  targetUserId: string
 ): Promise<{ response: string }> {
+  const logger = getLogger();
+  const storage = getStorage();
+
   logger.debug('Handling karma query', { targetUser: targetUserId });
   
   const karma = await getUserKarma(targetUserId, storage);
@@ -378,10 +378,10 @@ function checkForSelfKarmaAttempt(message: string, userId: string): boolean {
 /**
  * Handle a request for the karma leaderboard
  */
-async function handleLeaderboardRequest(
-  storage: KVStore,
-  logger: Logger
-): Promise<{ response: string }> {
+async function handleLeaderboardRequest(): Promise<{ response: string }> {
+  const logger = getLogger();
+  const storage = getStorage();
+
   logger.debug('Handling leaderboard request');
   
   try {
@@ -393,7 +393,7 @@ async function handleLeaderboardRequest(
     }
     
     // Format the leaderboard into a Slack message
-    const formattedMessage = await formatLeaderboardMessage(leaderboardData, storage, logger);
+    const formattedMessage = await formatLeaderboardMessage(leaderboardData);
     
     return { response: formattedMessage };
   } catch (error) {
@@ -409,10 +409,11 @@ async function handleLeaderboardRequest(
  * Format the leaderboard data into a message
  */
 async function formatLeaderboardMessage(
-  leaderboardData: Array<{ userId: string; karma: KarmaData }>,
-  storage: KVStore,
-  logger: Logger
+  leaderboardData: Array<{ userId: string; karma: KarmaData }>
 ): Promise<string> {
+  const logger = getLogger();
+  const storage = getStorage();
+
   // Sort the leaderboard by karma points (highest first)
   const sortedData = [...leaderboardData].sort((a, b) => 
     b.karma.points - a.karma.points
@@ -421,7 +422,7 @@ async function formatLeaderboardMessage(
   // Fetch user information from Slack for better display
   const userInfoPromises = sortedData.map(async (entry) => {
     try {
-      const userInfo = await getUserInfo(entry.userId, storage, logger);
+      const userInfo = await getUserInfo(entry.userId);
       return {
         ...entry,
         displayName: userInfo?.real_name || userInfo?.name || `<@${entry.userId}>`
@@ -462,22 +463,15 @@ async function formatLeaderboardMessage(
  * Get user information from Slack API
  */
 async function getUserInfo(
-  userId: string,
-  storage: KVStore,
-  logger: Logger
+  userId: string
 ): Promise<any> {
+  const logger = getLogger();
+  const config = getConfig();
+
   try {
-    // In Cloudflare Workers, env vars are passed in through the env object
-    // Using the SLACK_API_TOKEN here via process.env is a bug
-    // Cloudflare provides KV and secrets but doesn't use Node.js process.env
-    
-    // Since we can't easily pass the env object through all the function calls,
-    // we'll need to handle this condition gracefully
-    // This typically would come from process.env in Node.js or from a secrets binding in Cloudflare
-    
-    const token = process.env.SLACK_API_TOKEN;
+    const token = config.slackApiToken;
     if (!token) {
-      logger.error("Slack API token not available, consider updating this logic to get tokens from Cloudflare secrets");
+      logger.error("Slack API token not available");
       return null;
     }
     

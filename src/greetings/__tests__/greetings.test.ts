@@ -5,6 +5,7 @@
 import { processGreeting } from '../greetings';
 import { Logger } from '../../shared/logging/logger';
 import { Config } from '../../shared/config/config';
+import { asyncContext } from '../../shared/context/app-context';
 
 // Mock logger
 const mockLogger: Logger = {
@@ -24,6 +25,13 @@ const mockConfig: Config = {
 };
 
 describe('Greetings Module', () => {
+  beforeAll(() => {
+    asyncContext.enterWith({
+      logger: mockLogger,
+      config: mockConfig
+    });
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -32,9 +40,7 @@ describe('Greetings Module', () => {
     test('should recognize a direct greeting to the bot', async () => {
       const result = await processGreeting(
         'hi <@U12345678>',
-        'USER1',
-        mockLogger,
-        mockConfig
+        'USER1'
       );
       
       expect(result.isGreeting).toBe(true);
@@ -46,9 +52,7 @@ describe('Greetings Module', () => {
     test('should recognize a greeting with the bot mentioned', async () => {
       const result = await processGreeting(
         'hello there <@U12345678>, how are you?',
-        'USER1',
-        mockLogger,
-        mockConfig
+        'USER1'
       );
       
       expect(result.isGreeting).toBe(true);
@@ -59,9 +63,7 @@ describe('Greetings Module', () => {
     test('should ignore messages without a bot mention', async () => {
       const result = await processGreeting(
         'hello everyone',
-        'USER1',
-        mockLogger,
-        mockConfig
+        'USER1'
       );
       
       expect(result.isGreeting).toBe(false);
@@ -72,9 +74,7 @@ describe('Greetings Module', () => {
     test('should ignore messages to the bot without greetings', async () => {
       const result = await processGreeting(
         '<@U12345678> what is the karma for <@USER2>?',
-        'USER1',
-        mockLogger,
-        mockConfig
+        'USER1'
       );
       
       expect(result.isGreeting).toBe(false);
@@ -100,9 +100,7 @@ describe('Greetings Module', () => {
       for (const greeting of greetings) {
         const result = await processGreeting(
           greeting,
-          'USER1',
-          mockLogger,
-          mockConfig
+          'USER1'
         );
         
         expect(result.isGreeting).toBe(true);
@@ -119,9 +117,7 @@ describe('Greetings Module', () => {
       
       const result = await processGreeting(
         'hi <@U12345678>',
-        'USER1',
-        mockLogger,
-        mockConfig
+        'USER1'
       );
       
       expect(result.isGreeting).toBe(false);
