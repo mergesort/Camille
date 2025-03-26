@@ -58,6 +58,6 @@ yarn.lock
 pnpm-lock.yaml
 
 # Secrets
-camille-bot/.dev.vars
-camille-bot/wrangler.toml
-camille-bot/wrangler.dev.toml
+.dev.vars
+wrangler.toml
+wrangler.dev.toml
