@@ -66,14 +66,16 @@ export const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?\b(twitter\.com|x\
 /**
  * Karma increment pattern
  * Matches @username++ format for giving karma
+ * Captures all consecutive + characters to allow for multiple points
  */
-export const KARMA_INCREMENT_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*\+\+/g;
+export const KARMA_INCREMENT_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*(\+{2,})/g;
 
 /**
  * Karma decrement pattern
  * Matches @username-- format for removing karma
+ * Captures all consecutive - characters to allow for multiple points
  */
-export const KARMA_DECREMENT_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*--/g;
+export const KARMA_DECREMENT_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*(-{2,})/g;
 
 /**
  * Karma add pattern

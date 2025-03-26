@@ -11,19 +11,31 @@ import { updateUserKarma, getUserKarma, KarmaData, getKarmaLeaderboard } from '.
 import { KVNamespace } from "@cloudflare/workers-types";
 import { z } from "zod";
 import { KARMA_KEY_PREFIX } from "./storage";
-
-// Regular expressions for karma operations (don't depend on bot ID)
-const INCREMENT_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*\+\+/g;
-const DECREMENT_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*--/g;
-const ADD_KARMA_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*\+=\s*(\d+(?:\.\d+)?)/g;
-const SUBTRACT_KARMA_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>\s*-=\s*(\d+(?:\.\d+)?)/g;
+import { 
+  KARMA_INCREMENT_REGEX,
+  KARMA_DECREMENT_REGEX,
+  KARMA_ADD_REGEX,
+  KARMA_SUBTRACT_REGEX,
+  createKarmaQueryRegex,
+  createLeaderboardRegex
+} from '../shared/regex/patterns';
 
 // These regexes will be initialized with the bot ID when available
 let KARMA_QUERY_REGEX: RegExp | null = null;
 let LEADERBOARD_REGEX: RegExp | null = null;
 
+// Export regexes for testing
+export const getRuntimeRegexes = () => ({
+  KARMA_QUERY_REGEX,
+  LEADERBOARD_REGEX
+});
+
 // Configuration
-const MAX_KARMA_CHANGE = 10; // Maximum points that can be added/subtracted in a single operation
+// Maximum points that can be added/subtracted in a single operation
+// For multiple + or - characters:
+// ++ = 1 point, +++ = 2 points, ++++ = 3 points, etc.
+// -- = -1 point, --- = -2 points, ---- = -3 points, etc.
+const MAX_KARMA_CHANGE = 10;
 
 // Interface for karma operation
 interface KarmaOperation {
@@ -31,15 +43,40 @@ interface KarmaOperation {
   change: number;
 }
 
-// For test case handling - this flag will be set in the tests
-let FORCE_TEST_MODE = false;
-
-export function enableTestMode() {
-  FORCE_TEST_MODE = true;
-}
-
-export function disableTestMode() {
-  FORCE_TEST_MODE = false;
+/**
+ * Initialize regex patterns based on bot ID if available
+ * Exported for testing purposes
+ */
+export function initializeRegexes(config?: Config, logger?: Logger): void {
+  // If regexes are already initialized or no config, return
+  if ((KARMA_QUERY_REGEX && LEADERBOARD_REGEX) || !config) {
+    return;
+  }
+  
+  // If we have a bot ID, create regexes using the shared helpers
+  if (config.slackBotId) {
+    KARMA_QUERY_REGEX = createKarmaQueryRegex(config.slackBotId);
+    LEADERBOARD_REGEX = createLeaderboardRegex(config.slackBotId);
+    
+    if (logger) {
+      logger.debug('Initialized karma regexes with bot ID', { 
+        botId: config.slackBotId,
+        karmaQueryRegex: KARMA_QUERY_REGEX.toString(),
+        leaderboardRegex: LEADERBOARD_REGEX.toString()
+      });
+    }
+  } else {
+    // Fallback to generic regexes if no bot ID provided
+    KARMA_QUERY_REGEX = createKarmaQueryRegex(undefined);
+    LEADERBOARD_REGEX = createLeaderboardRegex(undefined);
+    
+    if (logger) {
+      logger.warn('No bot ID provided, using generic karma command regexes', {
+        karmaQueryRegex: KARMA_QUERY_REGEX.toString(),
+        leaderboardRegex: LEADERBOARD_REGEX.toString()
+      });
+    }
+  }
 }
 
 /**
@@ -55,32 +92,11 @@ export async function processKarmaMessage(
   logger.debug('Processing message for karma operations', { 
     messagePreview: message.substring(0, 50),
     hasBotId: config?.slackBotId ? true : false,
-    botId: config?.slackBotId || 'none',
-    testMode: FORCE_TEST_MODE
+    botId: config?.slackBotId || 'none'
   });
   
   // Initialize regexes with bot ID if available and not already initialized
   initializeRegexes(config, logger);
-  
-  // Special test case handling - directly check the message text
-  if (FORCE_TEST_MODE && config?.slackBotId === 'BOT123') {
-    logger.debug('Test mode enabled, using direct message matching');
-    
-    // Test case for leaderboard
-    if (message === '<@BOT123|camille> leaderboard') {
-      logger.debug('Test mode: matched leaderboard request');
-      return await handleLeaderboardRequest(storage, logger);
-    }
-    
-    // Test case for karma query
-    if (message.startsWith('<@BOT123|camille> karma <@') && message.includes('>')) {
-      const userId = message.match(/<@([A-Z0-9]+)>$/)?.[1];
-      if (userId) {
-        logger.debug('Test mode: matched karma query', { userId });
-        return await handleKarmaQuery(userId, storage, logger);
-      }
-    }
-  }
   
   // Check if this is a karma query directed at our bot
   if (KARMA_QUERY_REGEX && KARMA_QUERY_REGEX.test(message)) {
@@ -143,74 +159,51 @@ export async function processKarmaMessage(
 }
 
 /**
- * Initialize regex patterns based on bot ID if available
- */
-function initializeRegexes(config?: Config, logger?: Logger): void {
-  // If regexes are already initialized or no config, return
-  if ((KARMA_QUERY_REGEX && LEADERBOARD_REGEX) || !config) {
-    return;
-  }
-  
-  // If we have a bot ID, use it for more specific regexes
-  if (config.slackBotId) {
-    // This will match only "@camille karma @user" with our specific bot ID
-    KARMA_QUERY_REGEX = new RegExp(`<@${config.slackBotId}(?:\\|[^>]+)?>\\s+karma\\s+<@([A-Z0-9]+)(?:\\|[^>]+)?>`, 'i');
-    // This will match only "@camille leaderboard" with our specific bot ID
-    LEADERBOARD_REGEX = new RegExp(`<@${config.slackBotId}(?:\\|[^>]+)?>\\s+leaderboard`, 'i');
-    
-    if (logger) {
-      logger.debug('Initialized karma regexes with bot ID', { 
-        botId: config.slackBotId,
-        karmaQueryRegex: KARMA_QUERY_REGEX.toString(),
-        leaderboardRegex: LEADERBOARD_REGEX.toString()
-      });
-    }
-  } else {
-    // Fallback to generic regexes if no bot ID provided
-    KARMA_QUERY_REGEX = /<@[A-Z0-9]+(?:\|[^>]+)?>\s+karma\s+<@([A-Z0-9]+)(?:\|[^>]+)?>/i;
-    LEADERBOARD_REGEX = /<@[A-Z0-9]+(?:\|[^>]+)?>\s+leaderboard/i;
-    
-    if (logger) {
-      logger.warn('No bot ID provided, using generic karma command regexes', {
-        karmaQueryRegex: KARMA_QUERY_REGEX.toString(),
-        leaderboardRegex: LEADERBOARD_REGEX.toString()
-      });
-    }
-  }
-}
-
-/**
  * Extract karma operations from a message
  */
 function extractKarmaOperations(message: string, senderUserId: string): KarmaOperation[] {
   const operations: KarmaOperation[] = [];
   const processedUsers = new Set<string>(); // To prevent duplicate operations on the same user
   
-  // Process increments (++)
+  // Process increments (++, +++, etc.)
   let match;
-  while ((match = INCREMENT_REGEX.exec(message)) !== null) {
+  while ((match = KARMA_INCREMENT_REGEX.exec(message)) !== null) {
     const targetUserId = match[1];
+    const plusChars = match[2];
+    
+    // Calculate points based on the number of + characters (minimum 1, maximum MAX_KARMA_CHANGE)
+    // ++ = 1 point, +++ = 2 points, ++++ = 3 points, etc.
+    const additionalPoints = Math.min(plusChars.length - 2, MAX_KARMA_CHANGE - 1);
+    const points = 1 + additionalPoints;
+    
     // Prevent self-karma and duplicates
     if (targetUserId !== senderUserId && !processedUsers.has(targetUserId)) {
-      operations.push({ targetUserId, change: 1 });
+      operations.push({ targetUserId, change: points });
       processedUsers.add(targetUserId);
     }
   }
   
-  // Process decrements (--)
-  DECREMENT_REGEX.lastIndex = 0; // Reset regex state
-  while ((match = DECREMENT_REGEX.exec(message)) !== null) {
+  // Process decrements (--, ---, etc.)
+  KARMA_DECREMENT_REGEX.lastIndex = 0; // Reset regex state
+  while ((match = KARMA_DECREMENT_REGEX.exec(message)) !== null) {
     const targetUserId = match[1];
+    const minusChars = match[2];
+    
+    // Calculate points based on the number of - characters (minimum 1, maximum MAX_KARMA_CHANGE)
+    // -- = -1 point, --- = -2 points, ---- = -3 points, etc.
+    const additionalPoints = Math.min(minusChars.length - 2, MAX_KARMA_CHANGE - 1);
+    const points = 1 + additionalPoints;
+    
     // Prevent self-karma and duplicates
     if (targetUserId !== senderUserId && !processedUsers.has(targetUserId)) {
-      operations.push({ targetUserId, change: -1 });
+      operations.push({ targetUserId, change: -points });
       processedUsers.add(targetUserId);
     }
   }
   
   // Process add operations (+=N)
-  ADD_KARMA_REGEX.lastIndex = 0;
-  while ((match = ADD_KARMA_REGEX.exec(message)) !== null) {
+  KARMA_ADD_REGEX.lastIndex = 0;
+  while ((match = KARMA_ADD_REGEX.exec(message)) !== null) {
     const targetUserId = match[1];
     // Floor the decimal value and cap at MAX_KARMA_CHANGE
     const points = Math.min(Math.floor(parseFloat(match[2])), MAX_KARMA_CHANGE);
@@ -223,8 +216,8 @@ function extractKarmaOperations(message: string, senderUserId: string): KarmaOpe
   }
   
   // Process subtract operations (-=N)
-  SUBTRACT_KARMA_REGEX.lastIndex = 0;
-  while ((match = SUBTRACT_KARMA_REGEX.exec(message)) !== null) {
+  KARMA_SUBTRACT_REGEX.lastIndex = 0;
+  while ((match = KARMA_SUBTRACT_REGEX.exec(message)) !== null) {
     const targetUserId = match[1];
     // Floor the decimal value and cap at MAX_KARMA_CHANGE
     const points = Math.min(Math.floor(parseFloat(match[2])), MAX_KARMA_CHANGE);
@@ -350,32 +343,32 @@ async function handleKarmaQuery(
  */
 function checkForSelfKarmaAttempt(message: string, userId: string): boolean {
   // Reset all regex states
-  INCREMENT_REGEX.lastIndex = 0;
-  DECREMENT_REGEX.lastIndex = 0;
-  ADD_KARMA_REGEX.lastIndex = 0;
-  SUBTRACT_KARMA_REGEX.lastIndex = 0;
+  KARMA_INCREMENT_REGEX.lastIndex = 0;
+  KARMA_DECREMENT_REGEX.lastIndex = 0;
+  KARMA_ADD_REGEX.lastIndex = 0;
+  KARMA_SUBTRACT_REGEX.lastIndex = 0;
   
   // Check for increment attempts
   let match;
-  while ((match = INCREMENT_REGEX.exec(message)) !== null) {
+  while ((match = KARMA_INCREMENT_REGEX.exec(message)) !== null) {
     if (match[1] === userId) return true;
   }
   
   // Check for decrement attempts
-  DECREMENT_REGEX.lastIndex = 0;
-  while ((match = DECREMENT_REGEX.exec(message)) !== null) {
+  KARMA_DECREMENT_REGEX.lastIndex = 0;
+  while ((match = KARMA_DECREMENT_REGEX.exec(message)) !== null) {
     if (match[1] === userId) return true;
   }
   
   // Check for add operations
-  ADD_KARMA_REGEX.lastIndex = 0;
-  while ((match = ADD_KARMA_REGEX.exec(message)) !== null) {
+  KARMA_ADD_REGEX.lastIndex = 0;
+  while ((match = KARMA_ADD_REGEX.exec(message)) !== null) {
     if (match[1] === userId) return true;
   }
   
   // Check for subtract operations
-  SUBTRACT_KARMA_REGEX.lastIndex = 0;
-  while ((match = SUBTRACT_KARMA_REGEX.exec(message)) !== null) {
+  KARMA_SUBTRACT_REGEX.lastIndex = 0;
+  while ((match = KARMA_SUBTRACT_REGEX.exec(message)) !== null) {
     if (match[1] === userId) return true;
   }
   

@@ -55,7 +55,9 @@ function formatHelpMessage(): string {
 
 *Karma System*
 • \`@username++\` - Give 1 karma point to a user
+• \`@username+++\` - Give 2 karma points to a user (each extra + adds 1 more point, up to 10)
 • \`@username--\` - Remove 1 karma point from a user
+• \`@username---\` - Remove 2 karma points from a user (each extra - removes 1 more point, up to 10)
 • \`@username+= N\` - Give N karma points to a user (max 10)
 • \`@username-= N\` - Remove N karma points from a user (max 10)
 • \`@camille karma @username\` - Check a user's karma points
