@@ -1,23 +1,20 @@
 import { getUserKarma, setUserKarma, updateUserKarma, getKarmaLeaderboard, KarmaData } from '../storage';
-import { KVStore } from '../../shared/storage/kv-store';
+import { DefaultMockContext, testWithContext } from '../../testing/testWithContext';
+
+// // Setup constants and mocks at the top
+const mockContext = DefaultMockContext;
+const mockStorage = mockContext.storage;
+const mockLogger = mockContext.logger;
 
 describe('Karma Storage', () => {
   // Mock KVStore
-  let mockStorage: jest.Mocked<KVStore>;
   
   // Test user IDs
   const USER_1 = 'U12345';
   const USER_2 = 'U67890';
   const USER_3 = 'U11111';
   
-  beforeEach(() => {
-    // Setup mock
-    mockStorage = {
-      get: jest.fn(),
-      set: jest.fn(),
-      delete: jest.fn(),
-    } as unknown as jest.Mocked<KVStore>;
-    
+  beforeEach(() => {    
     // Default behavior
     mockStorage.get.mockImplementation(async (key: string) => {
       if (key === 'karma:leaderboard') {
@@ -29,7 +26,7 @@ describe('Karma Storage', () => {
   });
   
   describe('getUserKarma', () => {
-    test('should return null for users with no karma', async () => {
+    testWithContext('should return null for users with no karma', async () => {
       mockStorage.get.mockResolvedValue(null);
       
       const result = await getUserKarma(USER_1, mockStorage);
@@ -38,7 +35,7 @@ describe('Karma Storage', () => {
       expect(result).toBeNull();
     });
     
-    test('should return karma data for users with karma', async () => {
+    testWithContext('should return karma data for users with karma', async () => {
       const mockKarma = { points: 42, lastUpdated: new Date().toISOString() };
       mockStorage.get.mockResolvedValue(mockKarma);
       
@@ -50,7 +47,7 @@ describe('Karma Storage', () => {
   });
   
   describe('setUserKarma', () => {
-    test('should store karma data for a user', async () => {
+    testWithContext('should store karma data for a user', async () => {
       const points = 42;
       const updatedBy = 'U98765';
       
@@ -68,7 +65,7 @@ describe('Karma Storage', () => {
   });
   
   describe('updateUserKarma', () => {
-    test('should update karma points for a user', async () => {
+    testWithContext('should update karma points for a user', async () => {
       const initialKarma = { points: 5, lastUpdated: new Date().toISOString() };
       mockStorage.get.mockImplementation(async (key: string) => {
         if (key === `karma:${USER_1}`) {
@@ -91,7 +88,7 @@ describe('Karma Storage', () => {
       );
     });
     
-    test('should initialize karma for new users', async () => {
+    testWithContext('should initialize karma for new users', async () => {
       mockStorage.get.mockResolvedValue(null);
       
       const result = await updateUserKarma(USER_1, 5, 'U98765', mockStorage);
@@ -102,7 +99,7 @@ describe('Karma Storage', () => {
   });
   
   describe('getKarmaLeaderboard', () => {
-    test('should return leaderboard data when available', async () => {
+    testWithContext('should return leaderboard data when available', async () => {
       const leaderboardData = [
         { userId: USER_1, points: 42 },
         { userId: USER_2, points: 37 },
@@ -134,7 +131,7 @@ describe('Karma Storage', () => {
       expect(result[2].karma.points).toBe(21);
     });
     
-    test('should handle corrupted leaderboard data', async () => {
+    testWithContext('should handle corrupted leaderboard data', async () => {
       // Simulate corrupted data by returning a non-array
       mockStorage.get.mockImplementation(async (key: string) => {
         if (key === 'karma:leaderboard') {
@@ -150,7 +147,7 @@ describe('Karma Storage', () => {
       expect(result[0].karma.points).toBeGreaterThan(0);
     });
     
-    test('should handle empty leaderboard', async () => {
+    testWithContext('should handle empty leaderboard', async () => {
       mockStorage.get.mockImplementation(async (key: string) => {
         if (key === 'karma:leaderboard') {
           return [];
@@ -165,7 +162,7 @@ describe('Karma Storage', () => {
       expect(result[0].karma.points).toBeGreaterThan(0);
     });
     
-    test('should respect the limit parameter', async () => {
+    testWithContext('should respect the limit parameter', async () => {
       const leaderboardData = [
         { userId: USER_1, points: 42 },
         { userId: USER_2, points: 37 },

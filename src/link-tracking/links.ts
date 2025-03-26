@@ -1,11 +1,9 @@
 /**
  * Link Tracking
- *
- * Handles detection, storage, and contextual responses for shared links in messages
- */
+*
+* Handles detection, storage, and contextual responses for shared links in messages
+*/
 
-import { Logger } from '../shared/logging/logger';
-import { KVStore } from '../shared/storage/kv-store';
 import { storeLink, getLinkData, LinkData, normalizeUrl, LINK_KEY_PREFIX } from './storage';
 import { SLACK_FORMATTED_URL_REGEX } from '../shared/regex/patterns';
 import { getLogger, getStorage } from '../shared/context/app-context';
@@ -37,7 +35,7 @@ export async function processMessageLinks(
     user: string;
     thread_ts?: string;
     permalink?: string;
-  }
+  },
 ): Promise<LinkProcessingResult> {
   const logger = getLogger();
   const storage = getStorage();
@@ -148,91 +146,157 @@ export async function processMessageLinks(
         continue;
       }
       
-      // Only notify if:
-      // 1. The link was shared in a different channel
-      // 2. By a different user
-      // 3. Not in the same thread
-      if (
-        existingLink.channelId !== message.channel ||
-        existingLink.userId !== message.user
-      ) {
-        // Don't notify if this is a reply in the same thread as the original message
-        if (!message.thread_ts || message.thread_ts !== existingLink.messageId) {
-          const timeDiff = formatTimeDifference(
-            new Date(existingLink.timestamp),
-            new Date()
-          );
+      // Create a permalink reference
+      // Slack message permalinks follow the format:
+      // https://slack.com/archives/{channelId}/p{messageId without the dot}
+      // For threaded messages, add the thread_ts as a query parameter
+      let linkReference = '';
+      if (existingLink.channelId && existingLink.messageId) {
+        // Convert the messageId by removing the dot (Slack format)
+        const formattedMessageId = existingLink.messageId.replace('.', '');
+        
+        // Create a proper Slack permalink
+        let permalink = `https://slack.com/archives/${existingLink.channelId}/p${formattedMessageId}`;
+        
+        // If this was in a thread, add the thread parameters
+        if (existingLink.thread_ts) {
+          permalink += `?thread_ts=${existingLink.thread_ts}&cid=${existingLink.channelId}`;
           
-          const response = `This link was previously shared by <@${existingLink.userId}> ${timeDiff} ago in <#${existingLink.channelId}>`;
-          contextResponses.add(response);
-          
-          logger.debug('Added context response', {
+          logger.debug('Added thread parameters to permalink', {
             traceId,
-            response,
-            timeDiff
-          });
-        } else {
-          logger.debug('Skipping notification for link in same thread', {
-            traceId,
-            threadTs: message.thread_ts,
-            originalMessageId: existingLink.messageId
+            threadTs: existingLink.thread_ts,
+            channelId: existingLink.channelId
           });
         }
-      } else {
-        logger.debug('Skipping notification for link (same channel and user)', {
+        
+        // Use Slack's link format: <URL|text>
+        linkReference = ` <${permalink}|this message>`;
+        
+        logger.debug('Created permalink', {
           traceId,
-          channel: message.channel,
-          user: message.user
+          channelId: existingLink.channelId,
+          messageId: existingLink.messageId,
+          threadTs: existingLink.thread_ts,
+          formattedMessageId,
+          permalink,
+          isThreaded: !!existingLink.thread_ts
         });
       }
+      
+      // Create context-specific messages based on where the link was shared
+      if (existingLink.channelId !== message.channel) {
+        // Cross-channel reshare
+        const contextMessage = `:camille-hi-there: That link is also being discussed in${linkReference} in <#${existingLink.channelId}>`;
+        contextResponses.add(contextMessage);
+      } else if (message.thread_ts && existingLink.thread_ts === message.thread_ts) {
+        // Same thread reshare - matches when both have the same parent thread
+        const contextMessage = `:camille-hi-there: That link was previously shared in this thread by <@${existingLink.userId}>`;
+        contextResponses.add(contextMessage);
+      } else {
+        // Different thread or top-level message in same channel
+        const contextMessage = `:camille-hi-there: That link is also being discussed in${linkReference} in this channel`;
+        contextResponses.add(contextMessage);
+      }
     } else {
-      logger.debug('No existing link found', {
-        traceId,
-        url,
-        normalizedUrl
-      });
+      logger.debug('No existing link found', { traceId, url, normalizedUrl });
     }
   }
   
-  // Store all new links
-  for (const { url, normalizedUrl } of linksToStore) {
-    try {
-      await storeLink(
-        normalizedUrl,
-        {
-          url,
-          channelId: message.channel,
-          messageId: message.thread_ts || message.ts,
-          userId: message.user,
-          timestamp: new Date().toISOString()
-        },
-        storage
-      );
-      
-      logger.debug('Stored link', {
-        traceId,
-        url,
-        normalizedUrl,
-        user: message.user,
-        channel: message.channel
-      });
-    } catch (error) {
-      logger.error(
-        'Error storing link',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          traceId,
-          url,
-          normalizedUrl
-        }
-      );
-    }
-  }
+  // Prepare promises for storing all links in parallel
+  const storeLinkPromises = linksToStore.map(({ url, normalizedUrl }) => {
+    const linkData = {
+      url,
+      channelId: message.channel,
+      messageId: message.ts,
+      userId: message.user,
+      timestamp: new Date().toISOString(),
+      thread_ts: message.thread_ts // Store the thread_ts if this message is in a thread
+    };
+    
+    // Return the promise to store in KV
+    return storeLink(normalizedUrl, linkData, storage);
+  });
+  
+  // Store all links in parallel
+  await Promise.all(storeLinkPromises);
+  
+  // Prepare response if any context was found
+  const response = contextResponses.size > 0 
+    ? Array.from(contextResponses).join('\n')
+    : undefined;
+  
+  logger.debug('Link processing complete', {
+    traceId,
+    foundLinks: links.length,
+    contextResponses: contextResponses.size,
+    hasResponse: !!response
+  });
   
   return {
     linksFound: links,
-    response: contextResponses.size > 0 ? Array.from(contextResponses).join('\n') : undefined
+    response
   };
+}
+
+/**
+ * Extract links from message text
+ */
+function extractLinks(text: string): string[] {
+  // First, identify code blocks and create a version of the text with URLs in code blocks removed
+  // This will preserve the original text structure for regex matching, but prevent URLs in code blocks from being extracted
+  
+  // Handle multi-line code blocks (```code```)
+  let processedText = text;
+  const multiLineCodeBlockRegex = /```[\s\S]*?```/g;
+  const multiLineCodeBlocks = processedText.match(multiLineCodeBlockRegex) || [];
+  
+  multiLineCodeBlocks.forEach(block => {
+    // Replace the content of the code block with spaces to maintain string length and positions
+    processedText = processedText.replace(block, ' '.repeat(block.length));
+  });
+  
+  // Handle inline code blocks (`code`)
+  const inlineCodeBlockRegex = /`[^`]*?`/g;
+  const inlineCodeBlocks = processedText.match(inlineCodeBlockRegex) || [];
+  
+  inlineCodeBlocks.forEach(block => {
+    // Replace the content of the code block with spaces to maintain string length and positions
+    processedText = processedText.replace(block, ' '.repeat(block.length));
+  });
+  
+  // Extract Slack-formatted URLs
+  // Slack formats URLs as <URL> or <URL|display text>
+  const slackLinks: string[] = [];
+  
+  let match;
+  while ((match = SLACK_FORMATTED_URL_REGEX.exec(processedText)) !== null) {
+    // match[1] contains the URL part of the Slack link format
+    if (match[1] && !match[1].startsWith("@") && !match[1].startsWith("#")) {
+      // Skip user mentions (<@U12345>) and channel mentions (<#C12345>)
+      slackLinks.push(match[1]);
+    }
+  }
+  
+  // Return unique links
+  return Array.from(new Set(slackLinks));
+}
+
+/**
+ * Format ISO date string to a readable format
+ */
+function formatDate(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    return isoString;
+  }
 }
 
 /**
@@ -285,66 +349,54 @@ export async function processMessageDeletion(
     messageTs: event.ts
   });
   
-  // Process each link
-  for (const url of links) {
-    try {
-      const normalizedUrl = normalizeUrl(url);
-      const linkData = await getLinkData(normalizedUrl, storage);
+  // Prepare promises for all link lookups to run in parallel
+  const linkLookupPromises = links.map(async (url) => {
+    // Normalize the URL before lookup
+    const normalizedUrl = normalizeUrl(url);
+    const storageKey = `${LINK_KEY_PREFIX}${normalizedUrl}`;
+    
+    // Check if this link is in storage
+    const existingLink = await getLinkData(normalizedUrl, storage);
+    
+    // If the link exists and was created by this message, delete it
+    if (existingLink && 
+        existingLink.messageId === event.previous_message!.ts && 
+        existingLink.channelId === event.channel) {
       
-      // Only delete if this is the original message that shared the link
-      if (linkData && linkData.messageId === event.ts) {
-        // TODO: Implement link deletion
-        // For now, we'll just log that we would delete it
-        logger.info('Would delete link', {
-          traceId,
-          url,
-          normalizedUrl,
-          messageTs: event.ts
-        });
-      }
-    } catch (error) {
-      logger.error(
-        'Error processing link deletion',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          traceId,
-          url,
-          messageTs: event.ts
-        }
-      );
+      logger.debug('Message deletion: Deleting link reference', { 
+        traceId,
+        url,
+        normalizedUrl,
+        messageTs: event.ts,
+        storageKey
+      });
+      
+      await storage.delete(storageKey);
+      return true;
     }
-  }
-}
-
-/**
- * Extract links from message text
- */
-function extractLinks(text: string): string[] {
-  const matches = text.match(SLACK_FORMATTED_URL_REGEX);
-  return matches ? Array.from(new Set(matches)) : [];
-}
-
-/**
- * Format a time difference into a human-readable string
- */
-function formatTimeDifference(from: Date, to: Date): string {
-  const diffMs = to.getTime() - from.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
+    
+    logger.debug('Message deletion: Link reference not found or from different message', { 
+      traceId,
+      url,
+      normalizedUrl,
+      messageTs: event.ts,
+      foundLink: !!existingLink,
+      matchesMessage: existingLink ? existingLink.messageId === event.previous_message!.ts : false,
+      matchesChannel: existingLink ? existingLink.channelId === event.channel : false
+    });
+    
+    return false;
+  });
   
-  if (diffDays > 0) {
-    return `${diffDays} day${diffDays === 1 ? '' : 's'}`;
-  }
+  // Wait for all operations to complete
+  const deletionResults = await Promise.all(linkLookupPromises);
   
-  if (diffHours > 0) {
-    return `${diffHours} hour${diffHours === 1 ? '' : 's'}`;
-  }
+  // Count how many links were deleted
+  const deletedCount = deletionResults.filter(Boolean).length;
   
-  if (diffMinutes > 0) {
-    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'}`;
-  }
-  
-  return `${diffSeconds} second${diffSeconds === 1 ? '' : 's'}`;
+  logger.debug('Message deletion: Processing complete', {
+    traceId,
+    deletedCount,
+    totalLinksFound: links.length
+  });
 } 

@@ -2,8 +2,6 @@
  * Tests for karma functionality
  */
 
-import { Logger } from '../../shared/logging/logger';
-import { KVStore } from '../../shared/storage/kv-store';
 import { processKarmaMessage, initializeRegexes, getRuntimeRegexes } from '../karma';
 import { KarmaData } from '../storage';
 import { createKarmaQueryRegex, createLeaderboardRegex } from '../../shared/regex/patterns';
@@ -379,6 +377,9 @@ describe('Karma Module', () => {
           }
           return null;
         });
+        
+        const karmaLeaderboard = await mockContext.storage.get('karma:leaderboard');
+        console.log({ karmaLeaderboard});
 
         const message = '<@BOTID|camille> leaderboard';
 
