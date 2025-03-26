@@ -38,8 +38,8 @@ Camille is an extensible Slack bot designed to enhance community management and 
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd camille-bot
+git clone https://github.com/mergesort/Camille.git
+cd Camille/camille-bot
 ```
 
 2. Install dependencies:
@@ -48,9 +48,12 @@ npm install
 ```
 
 3. Create your configuration files:
-   - Copy `.dev.vars.example` to `.dev.vars`
-   - Copy `wrangler.toml.example.toml` to `wrangler.toml`
-   - Update the configuration values (see Configuration section below)
+```bash
+cp .dev.vars.example .dev.vars
+cp wrangler.toml.example.toml wrangler.dev.toml
+```
+
+- Update the configuration values (see Configuration section below)
 
 4. Set up your development environment:
 ```bash
