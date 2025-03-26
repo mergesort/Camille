@@ -55,8 +55,9 @@ coverage/
 
 # Package manager lock files (if you are using npm, yarn, or pnpm)
 yarn.lock
-package-lock.json
 pnpm-lock.yaml
+
+# Secrets
 camille-bot/.dev.vars
 camille-bot/wrangler.toml
 camille-bot/wrangler.dev.toml
