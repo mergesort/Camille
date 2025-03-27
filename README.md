@@ -52,12 +52,7 @@ npm install
    - Copy `wrangler.toml.example.toml` to `wrangler.toml`
    - Update the configuration values (see Configuration section below)
 
-4. Set up your development environment:
-```bash
-npm run setup-dev-kv
-```
-
-5. Start the development server:
+4. Start the development server:
 ```bash
 npm run dev-local
 ```

@@ -85,13 +85,7 @@ We provide a simplified approach for local development that handles the KV names
 
 We've added script commands to streamline the local development process:
 
-1. First, run the setup script (one-time setup):
-   ```bash
-   npm run setup-dev-kv
-   ```
-   This script creates a development KV namespace specifically for local testing and updates the configuration file.
-
-2. To start local development with ngrok:
+To start local development with ngrok:
    ```bash
    npm run dev-local
    ```
@@ -198,9 +192,6 @@ As you implement each feature module, you can test them individually:
 - **Authentication errors**: Verify your Bot Token and Signing Secret
 
 - **Local server errors**: Check the console output for specific error messages
-
-- **KV storage issues**: Make sure Wrangler is properly configured for local KV emulation
-  - Run `npm run setup-dev-kv` again if KV configuration seems incorrect
 
 - **Slack URL verification fails**: 
   - Make sure your server is properly handling the challenge request
