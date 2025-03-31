@@ -31,15 +31,14 @@ Camille is an extensible Slack bot designed to enhance community management and 
 ### Prerequisites
 - Node.js (latest LTS version)
 - npm
-- [ngrok](https://ngrok.com/) for local development
 - A Slack workspace where you can create apps
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd camille-bot
+git clone https://github.com/mergesort/Camille.git
+cd Camille/camille-bot
 ```
 
 2. Install dependencies:
@@ -48,25 +47,31 @@ npm install
 ```
 
 3. Create your configuration files:
-   - Copy `.dev.vars.example` to `.dev.vars`
-   - Copy `wrangler.toml.example.toml` to `wrangler.toml`
-   - Update the configuration values (see Configuration section below)
-
-4. Start the development server:
 ```bash
-npm run dev-local
+cp .dev.vars.example .dev.vars
+cp wrangler.toml.example.toml wrangler.dev.toml
 ```
 
-For more detailed instructions, see: [Local Testing](/project_docs/local_testing.md)
+4. Edit required configuration values:
 
-### Configuration
-
-Required environment variables:
 - `API_HOST`: The host URL for the API
 - `SLACK_API_TOKEN`: Slack Bot User OAuth Token
 - `SLACK_BOT_ID`: The bot's Slack User ID
 - `SLACK_COMMUNITY_ID`: Your Slack workspace ID
 - `SLACK_SIGNING_SECRET`: Slack signing secret for request verification
+
+5. Set up your development environment:
+```bash
+npm run setup-dev-kv
+```
+
+6. Start the development server:
+
+```bash
+npm run dev-local
+```
+
+For more detailed instructions, see: [Local Testing](/project_docs/local_testing.md)
 
 ## Documentation
 
