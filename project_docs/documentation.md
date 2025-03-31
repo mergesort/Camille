@@ -143,9 +143,6 @@ The following environment variables are required:
 For local development and testing with real Slack events, we provide tools to set up a local environment:
 
 ```bash
-# One-time setup of development KV namespace
-npm run setup-dev-kv
-
 # Start local development with ngrok
 npm run dev-local
 ```

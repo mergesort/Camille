@@ -7,7 +7,6 @@
     "dev": "wrangler dev",
     "dev-local": "./scripts/start-local-dev.sh",
     "start-local": "wrangler dev --config wrangler.dev.toml",
-    "setup-dev-kv": "./scripts/setup-dev-kv.sh",
     "deploy": "wrangler deploy",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "jest"

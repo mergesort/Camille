@@ -60,13 +60,13 @@ cp wrangler.toml.example.toml wrangler.dev.toml
 - `SLACK_COMMUNITY_ID`: Your Slack workspace ID
 - `SLACK_SIGNING_SECRET`: Slack signing secret for request verification
 
-
 5. Set up your development environment:
 ```bash
 npm run setup-dev-kv
 ```
 
 6. Start the development server:
+
 ```bash
 npm run dev-local
 ```
