@@ -518,6 +518,93 @@ describe('Link Tracking', () => {
         expect(result.linksFound).toHaveLength(1);
         expect(result.linksFound).toContain('https://example.com');
       });
+
+      test('should detect domains when Slack auto-wraps them in brackets', async () => {
+        // This simulates what happens when Slack auto-linkifies bare domains
+        const message = {
+          text: 'I love using <sky.app> and <bsky.app> for social media',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should NOT detect these since they are bare domains without protocols or paths
+        // Even though Slack wraps them in brackets, we filter out simple bare domains
+        expect(result.linksFound).toHaveLength(0);
+        expect(mockKVStore.set).not.toHaveBeenCalled();
+      });
+
+      test('should handle mixed bare and auto-wrapped domains', async () => {
+        // This simulates a scenario where some domains are auto-wrapped and others aren't
+        const message = {
+          text: 'Check out <sky.app> but also mentioned bsky.app and <https://github.com>',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should only detect the full URL with protocol, not the bare domains
+        expect(result.linksFound).toHaveLength(1);
+        expect(result.linksFound).toContain('https://github.com');
+        expect(result.linksFound).not.toContain('sky.app');
+        expect(result.linksFound).not.toContain('bsky.app');
+      });
+      
+      test('should detect URLs with paths even without protocols', async () => {
+        // This tests the distinction between bare domains and URLs with meaningful paths
+        const message = {
+          text: 'Simple domains: <aol.com> and <sky.app> but URLs with paths: <aol.com/123> and <bsky.app/profile/user>',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should detect URLs with paths but not simple bare domains
+        expect(result.linksFound).toHaveLength(2);
+        expect(result.linksFound).toContain('aol.com/123');
+        expect(result.linksFound).toContain('bsky.app/profile/user');
+        expect(result.linksFound).not.toContain('aol.com');
+        expect(result.linksFound).not.toContain('sky.app');
+      });
+      
+      test('should handle Phoronix URL scenario correctly', async () => {
+        // Test the specific scenario mentioned by the user
+        mockKVStore.get.mockResolvedValue(null); // No existing links
+        
+        const message = {
+          text: 'Check out <https://www.phoronix.com/news/Apple-Touch-Bar-Display-Linux>',
+          ts: '123456789.123456',
+          channel: 'C12345',
+          user: 'U12345'
+        };
+        
+        const result = await processMessageLinks(message, mockKVStore, mockLogger);
+        
+        // Should detect the Phoronix URL
+        expect(result.linksFound).toHaveLength(1);
+        expect(result.linksFound).toContain('https://www.phoronix.com/news/Apple-Touch-Bar-Display-Linux');
+        expect(result.response).toBeUndefined(); // No previous link, so no response
+        
+        // Verify storage was called to save the link
+        // The normalized URL should be: phoronix.com/news/Apple-Touch-Bar-Display-Linux
+        expect(mockKVStore.set).toHaveBeenCalledWith(
+          'link:phoronix.com/news/Apple-Touch-Bar-Display-Linux',
+          expect.objectContaining({
+            url: 'https://www.phoronix.com/news/Apple-Touch-Bar-Display-Linux',
+            channelId: 'C12345',
+            userId: 'U12345'
+          }),
+          expect.objectContaining({
+            expirationTtl: expect.any(Number)
+          })
+        );
+      });
     });
   });
   

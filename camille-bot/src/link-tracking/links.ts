@@ -81,10 +81,19 @@ export async function processMessageLinks(
       normalizedUrl
     });
     
-    // Check from storage
-    const existingLink = await getLinkData(normalizedUrl, storage);
-    
-    return { url, normalizedUrl, existingLink };
+    // Check from storage with error handling
+    try {
+      const existingLink = await getLinkData(normalizedUrl, storage);
+      return { url, normalizedUrl, existingLink };
+    } catch (error) {
+      logger.error('Failed to lookup existing link', error instanceof Error ? error : new Error(String(error)), {
+        traceId,
+        url,
+        normalizedUrl
+      });
+      // Return as if no existing link was found
+      return { url, normalizedUrl, existingLink: null };
+    }
   });
   
   // Wait for all link lookups to complete
@@ -213,8 +222,15 @@ export async function processMessageLinks(
       thread_ts: message.thread_ts // Store the thread_ts if this message is in a thread
     };
     
-    // Return the promise to store in KV
-    return storeLink(normalizedUrl, linkData, storage);
+    // Return the promise to store in KV with error handling
+    return storeLink(normalizedUrl, linkData, storage).catch(error => {
+      logger.error('Failed to store link', error instanceof Error ? error : new Error(String(error)), {
+        traceId,
+        url,
+        normalizedUrl
+      });
+      // Don't throw - we want to continue processing other links
+    });
   });
   
   // Store all links in parallel
@@ -240,6 +256,8 @@ export async function processMessageLinks(
 
 /**
  * Extract links from message text
+ * Only extracts URLs with protocols (http/https) OR URLs with paths
+ * Filters out simple bare domains that Slack auto-linkifies but users didn't intend as actual links
  */
 function extractLinks(text: string): string[] {
   // First, identify code blocks and create a version of the text with URLs in code blocks removed
@@ -273,7 +291,26 @@ function extractLinks(text: string): string[] {
     // match[1] contains the URL part of the Slack link format
     if (match[1] && !match[1].startsWith("@") && !match[1].startsWith("#")) {
       // Skip user mentions (<@U12345>) and channel mentions (<#C12345>)
-      slackLinks.push(match[1]);
+      
+      const url = match[1];
+      
+      // Include URLs that have:
+      // 1. A protocol (http/https) - these are intentional links
+      // 2. A path (contains / after the domain) - these are meaningful URLs
+      // Exclude simple bare domains that Slack auto-linkifies
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        // Has protocol - always include
+        slackLinks.push(url);
+      } else {
+        // No protocol - check if it has a meaningful path
+        // Split on / and check if there's content after the domain
+        const parts = url.split('/');
+        if (parts.length > 1 && parts[1] && parts[1].trim() !== '') {
+          // Has a path after the domain - include it
+          slackLinks.push(url);
+        }
+        // If it's just a bare domain (no path), skip it
+      }
     }
   }
   
