@@ -294,28 +294,90 @@ function extractLinks(text: string): string[] {
       
       const url = match[1];
       
-      // Include URLs that have:
-      // 1. A protocol (http/https) - these are intentional links
-      // 2. A path (contains / after the domain) - these are meaningful URLs
-      // Exclude simple bare domains that Slack auto-linkifies
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        // Has protocol - always include
+      // Enhanced filtering logic for intentional links
+      if (isIntentionalLink(url)) {
         slackLinks.push(url);
-      } else {
-        // No protocol - check if it has a meaningful path
-        // Split on / and check if there's content after the domain
-        const parts = url.split('/');
-        if (parts.length > 1 && parts[1] && parts[1].trim() !== '') {
-          // Has a path after the domain - include it
-          slackLinks.push(url);
-        }
-        // If it's just a bare domain (no path), skip it
       }
     }
   }
   
   // Return unique links
   return Array.from(new Set(slackLinks));
+}
+
+/**
+ * Determine if a URL represents an intentional link that should be tracked
+ * This function implements strict filtering to avoid tracking casual domain mentions
+ */
+function isIntentionalLink(url: string): boolean {
+  // 1. URLs with explicit protocols are always considered intentional
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return true;
+  }
+  
+  // 2. For URLs without protocols, check if they have meaningful paths
+  const parts = url.split('/');
+  const domain = parts[0];
+  const pathParts = parts.slice(1);
+  
+  // Check if there's a meaningful path (not just empty or single slash)
+  const hasMeaningfulPath = pathParts.length > 0 && 
+    pathParts.some(part => part && part.trim() !== '');
+  
+  if (hasMeaningfulPath) {
+    return true;
+  }
+  
+  // 3. Additional checks for bare domains that might be intentional
+  // Check for query parameters (indicates intentional sharing)
+  if (url.includes('?') && url.includes('=')) {
+    return true;
+  }
+  
+  // Check for fragments/anchors (indicates intentional sharing)
+  if (url.includes('#') && url.split('#')[1]) {
+    return true;
+  }
+  
+  // 4. Check for structural indicators of intentional links
+  // These patterns indicate the URL is likely meant to be a functional link
+  
+  // Subdomains (beyond www) often indicate intentional links
+  // e.g., api.example.com, docs.github.com, mail.google.com
+  const domainParts = domain.split('.');
+  if (domainParts.length > 2) {
+    // Has subdomain - check if it's not just 'www'
+    const subdomain = domainParts[0].toLowerCase();
+    if (subdomain !== 'www') {
+      return true;
+    }
+  }
+  
+  // Port numbers indicate technical/intentional links
+  // e.g., localhost:3000, example.com:8080
+  if (domain.includes(':') && /:\d+$/.test(domain)) {
+    return true;
+  }
+  
+  // 5. Filter out simple bare domains using structural patterns
+  // These patterns identify casual domain mentions vs intentional links
+  
+  // Single word + common TLD pattern (likely casual mention)
+  // e.g., hello.app, mysite.com, test.io
+  if (/^[a-zA-Z0-9-]+\.[a-zA-Z]{2,4}$/.test(domain)) {
+    return false;
+  }
+  
+  // Multiple words in domain (more likely intentional)
+  // e.g., my-awesome-app.com, super-cool-site.io
+  if (/^[a-zA-Z0-9]+-[a-zA-Z0-9-]+\.[a-zA-Z]{2,4}$/.test(domain)) {
+    // Even multi-word domains can be casual mentions, so be conservative
+    return false;
+  }
+  
+  // 6. For any other bare domains, be conservative and don't track them
+  // This errs on the side of not tracking rather than over-tracking
+  return false;
 }
 
 /**

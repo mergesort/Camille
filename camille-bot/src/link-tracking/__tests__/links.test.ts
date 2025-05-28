@@ -605,6 +605,79 @@ describe('Link Tracking', () => {
           })
         );
       });
+      
+      test('should NOT detect bare domains like hello.app', async () => {
+        // Test the structural-based filtering approach
+        mockKVStore.get.mockResolvedValue(null);
+        
+        const testCases = [
+          // Simple bare domains - should not be detected (structural filtering)
+          { text: 'hello.app', expected: 0 },
+          { text: '<hello.app>', expected: 0 },
+          { text: '<hello.io>', expected: 0 },
+          { text: '<mysite.dev>', expected: 0 },
+          { text: '<example.com>', expected: 0 },
+          { text: '<test123.org>', expected: 0 },
+          { text: '<simple.net>', expected: 0 },
+          
+          // Multi-word domains - still filtered out (conservative approach)
+          { text: '<my-app.com>', expected: 0 },
+          { text: '<cool-site.io>', expected: 0 },
+          
+          // Slack-wrapped with display text - should not be detected
+          { text: '<hello.app|Hello App>', expected: 0 },
+          
+          // With protocol - should be detected
+          { text: '<https://hello.app>', expected: 1 },
+          { text: '<http://hello.app>', expected: 1 },
+          
+          // With meaningful paths - should be detected
+          { text: '<hello.app/path>', expected: 1 },
+          { text: '<hello.app/docs/api>', expected: 1 },
+          { text: '<simple.com/user/repo>', expected: 1 },
+          
+          // With subdomains (beyond www) - should be detected
+          { text: '<api.hello.app>', expected: 1 },
+          { text: '<docs.example.com>', expected: 1 },
+          { text: '<mail.google.com>', expected: 1 },
+          
+          // With port numbers - should be detected
+          { text: '<example.com:8080>', expected: 1 },
+          { text: '<api.service.com:9000>', expected: 1 },
+          
+          // With query parameters - should be detected
+          { text: '<hello.app?ref=123>', expected: 1 },
+          { text: '<example.com?utm_source=slack>', expected: 1 },
+          
+          // With fragments - should be detected
+          { text: '<hello.app#section>', expected: 1 },
+          { text: '<docs.com#getting-started>', expected: 1 },
+          
+          // Edge cases with empty paths - should not be detected
+          { text: '<hello.app/>', expected: 0 },
+          { text: '<hello.app//>', expected: 0 },
+          
+          // www subdomain should still be filtered out (common casual mention)
+          { text: '<www.hello.app>', expected: 0 },
+        ];
+        
+        for (const testCase of testCases) {
+          const message = {
+            text: testCase.text,
+            ts: '123456789.123456',
+            channel: 'C12345',
+            user: 'U12345'
+          };
+          
+          const result = await processMessageLinks(message, mockKVStore, mockLogger);
+          
+          expect(result.linksFound).toHaveLength(testCase.expected);
+          
+          if (testCase.expected === 0) {
+            expect(result.response).toBeUndefined();
+          }
+        }
+      });
     });
   });
   
