@@ -10,6 +10,7 @@ import { KVStore } from '../shared/storage/kv-store';
 
 // Define trigger phrases to detect
 const TRIGGER_PATTERNS = [
+  /\bhello\s+guys\b/i,
   /\bhey\s+guys\b/i,
   /\byou\s+guys\b/i,
   /\bthanks\s+guys\b/i,
