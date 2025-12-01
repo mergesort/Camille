@@ -32,8 +32,6 @@
       "Bash(tree:*)"
     ],
     "ask": [
-      "Bash(rm:*)",
-      "Bash(mv:*)",
       "Bash(npm run deploy)"
     ],
     "deny": [
