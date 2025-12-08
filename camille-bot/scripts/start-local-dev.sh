@@ -8,7 +8,7 @@ fi
 
 # Start ngrok in the background
 echo "Starting ngrok..."
-ngrok http 8787 > /dev/null &
+ngrok http 8787 --domain secretive-nonfalteringly-alan.ngrok-free.dev > /dev/null &
 NGROK_PID=$!
 
 # Give ngrok a moment to start
