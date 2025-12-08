@@ -103,4 +103,103 @@ export async function addSlackReaction(options: {
     const errorData = await response.text();
     throw new Error(`Failed to add reaction: ${errorData}`);
   }
-} 
+}
+
+/**
+ * Find a channel by name
+ */
+export async function findChannelByName(options: {
+  channelName: string;
+  token: string;
+}): Promise<string | null> {
+  const { channelName, token } = options;
+
+  // Remove # prefix if present
+  const normalizedName = channelName.replace(/^#/, '');
+
+  const response = await fetch('https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=1000', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  const data = await response.json() as {
+    ok: boolean;
+    channels?: Array<{ id: string; name: string; [key: string]: any }>;
+    error?: string
+  };
+
+  if (!data.ok || !data.channels) {
+    throw new Error(`Failed to list channels: ${data.error || 'Unknown error'}`);
+  }
+
+  // Find the channel by name
+  const channel = data.channels.find(ch => ch.name === normalizedName);
+
+  return channel ? channel.id : null;
+}
+
+/**
+ * Get a Slack channel's information including topic
+ */
+export async function getSlackChannelInfo(options: {
+  channel: string;
+  token: string;
+}): Promise<{ topic: string }> {
+  const { channel, token } = options;
+
+  const response = await fetch(`https://slack.com/api/conversations.info?channel=${channel}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  const data = await response.json() as {
+    ok: boolean;
+    channel?: { topic: { value: string } };
+    error?: string
+  };
+
+  if (!data.ok || !data.channel) {
+    throw new Error(`Failed to get channel info: ${data.error || 'Unknown error'}`);
+  }
+
+  return {
+    topic: data.channel.topic.value
+  };
+}
+
+/**
+ * Update a Slack channel's topic
+ */
+export async function updateSlackChannelTopic(options: {
+  channel: string;
+  topic: string;
+  token: string;
+}): Promise<void> {
+  const { channel, topic, token } = options;
+
+  const payload = {
+    channel,
+    topic
+  };
+
+  const response = await fetch('https://slack.com/api/conversations.setTopic', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json() as { ok: boolean; error?: string };
+
+  if (!data.ok) {
+    throw new Error(`Failed to update channel topic: ${data.error || 'Unknown error'}`);
+  }
+}
