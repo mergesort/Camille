@@ -139,6 +139,31 @@ describe('Lost Hours Processing', () => {
     expect(result.response).toContain('Invalid value');
   });
 
+  test('should reject malformed negative syntax += -5 with helpful feedback', async () => {
+    const message = '<#C12345678|lost-hours> += -5';
+    const userId = 'U12345';
+
+    mockedFindChannelByName.mockResolvedValue('C12345678');
+
+    const result = await processLostHoursMessage(message, userId, mockLogger, mockConfig);
+
+    expect(result.status).toBe('error');
+    expect(result.response).toContain('Invalid syntax');
+    expect(result.response).toContain('-=');
+  });
+
+  test('should reject malformed negative syntax -= -5 with helpful feedback', async () => {
+    const message = '<#C12345678|lost-hours> -= -5';
+    const userId = 'U12345';
+
+    mockedFindChannelByName.mockResolvedValue('C12345678');
+
+    const result = await processLostHoursMessage(message, userId, mockLogger, mockConfig);
+
+    expect(result.status).toBe('error');
+    expect(result.response).toContain('Invalid syntax');
+  });
+
   test('should reject unreasonably large increments', async () => {
     const message = '<#C12345678|lost-hours> += 9999';
     const userId = 'U12345';

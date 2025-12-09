@@ -99,6 +99,22 @@ export async function processLostHoursMessage(
       logger.debug('Using cached #lost-hours channel ID', { channelId: lostHoursChannelId });
     }
 
+    // First check for malformed syntax like += -5 or -= -5
+    // This is a common user error that we want to give helpful feedback on
+    const malformedRegex = createLostHoursMalformedNegativeRegex(lostHoursChannelId);
+    malformedRegex.lastIndex = 0;
+
+    if (malformedRegex.test(messageText)) {
+      logger.warn('Detected malformed negative syntax in lost-hours command', {
+        messageText: messageText.substring(0, 100),
+        userId
+      });
+      return {
+        status: ProcessingStatus.ERROR,
+        response: 'Invalid syntax. Use `#lost-hours -= 5` to subtract hours, not `+= -5`. The operator (+/-) determines the direction.'
+      };
+    }
+
     // Now create the regex pattern with the channel ID
     // This will match Slack channel mentions like <#C12345678|lost-hours> or <#C12345678>
     const lostHoursIncrementRegex = createLostHoursIncrementRegex(lostHoursChannelId);
