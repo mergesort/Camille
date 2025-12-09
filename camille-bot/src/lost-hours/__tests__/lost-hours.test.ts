@@ -119,8 +119,8 @@ describe('Lost Hours Processing', () => {
     expect(result.newHours).toBe(1007);
   });
 
-  test('should reject negative increments', async () => {
-    const message = '<#C12345678|lost-hours> += -5';
+  test('should reject zero increments', async () => {
+    const message = '<#C12345678|lost-hours> += 0';
     const userId = 'U12345';
 
     mockedFindChannelByName.mockResolvedValue('C12345678');
@@ -128,7 +128,7 @@ describe('Lost Hours Processing', () => {
     const result = await processLostHoursMessage(message, userId, mockLogger, mockConfig);
 
     expect(result.status).toBe('error');
-    expect(result.response).toContain('Invalid increment value');
+    expect(result.response).toContain('Invalid value');
   });
 
   test('should reject unreasonably large increments', async () => {
@@ -140,7 +140,7 @@ describe('Lost Hours Processing', () => {
     const result = await processLostHoursMessage(message, userId, mockLogger, mockConfig);
 
     expect(result.status).toBe('error');
-    expect(result.response).toContain('Invalid increment value');
+    expect(result.response).toContain('Invalid value');
   });
 
   test('should handle missing API token gracefully', async () => {

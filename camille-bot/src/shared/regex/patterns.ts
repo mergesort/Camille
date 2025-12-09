@@ -136,3 +136,16 @@ export function createLostHoursIncrementRegex(channelId: string): RegExp {
   const pattern = `<#${channelId}(?:\\|[^>]*)?>\\s*([+-])=?\\s*(\\d+(?:\\.\\d+)?)`;
   return new RegExp(pattern, 'gi');
 }
+
+/**
+ * Create a regex to detect malformed lost hours syntax like += -5 or -= -5
+ * This catches user errors where they try to use a negative number after the operator
+ * @param channelId The channel ID to match
+ * @returns A RegExp that matches malformed lost hours commands
+ */
+export function createLostHoursMalformedNegativeRegex(channelId: string): RegExp {
+  // Match: <#CHANNELID|name> or <#CHANNELID> followed by += or -= and then a negative number
+  // This is a user error - they should use -= 5 instead of += -5
+  const pattern = `<#${channelId}(?:\\|[^>]*)?>\\s*[+-]=\\s*-\\s*\\d+(?:\\.\\d+)?`;
+  return new RegExp(pattern, 'gi');
+}

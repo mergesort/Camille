@@ -6,11 +6,12 @@
 
 import { Logger } from '../shared/logging/logger';
 import { Config } from '../shared/config/config';
-import { createLostHoursIncrementRegex } from '../shared/regex/patterns';
+import { createLostHoursIncrementRegex, createLostHoursMalformedNegativeRegex } from '../shared/regex/patterns';
 import {
   findChannelByName,
   getSlackChannelInfo,
-  updateSlackChannelTopic
+  updateSlackChannelTopic,
+  MissingScopeError
 } from '../shared/slack/messaging';
 
 /**
@@ -218,6 +219,15 @@ export async function processLostHoursMessage(
     };
 
   } catch (error) {
+    // Check for missing OAuth scope error
+    if (error instanceof MissingScopeError) {
+      logger.error('Missing OAuth scope for lost-hours feature', error);
+      return {
+        status: ProcessingStatus.ERROR,
+        response: `The lost-hours feature requires additional permissions. Please add the "${error.neededScope}" OAuth scope to the Slack app and reinstall it.`
+      };
+    }
+
     logger.error(
       'Error processing lost-hours message',
       error instanceof Error ? error : new Error(String(error))

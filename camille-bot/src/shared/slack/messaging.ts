@@ -1,8 +1,37 @@
 /**
  * Slack Messaging Functions
- * 
+ *
  * Utilities for sending messages and reactions to Slack
  */
+
+/**
+ * Custom error class for missing Slack OAuth scopes
+ */
+export class MissingScopeError extends Error {
+  constructor(
+    public readonly neededScope: string,
+    public readonly operation: string
+  ) {
+    super(
+      `Missing OAuth scope: "${neededScope}" is required for ${operation}. ` +
+      `Please add this scope in your Slack app settings (OAuth & Permissions) and reinstall the app.`
+    );
+    this.name = 'MissingScopeError';
+  }
+}
+
+/**
+ * Check if a Slack API error is a missing scope error and throw a helpful message
+ */
+function checkForMissingScopeError(
+  data: { ok: boolean; error?: string; needed?: string },
+  operation: string,
+  fallbackScope: string
+): void {
+  if (!data.ok && data.error === 'missing_scope') {
+    throw new MissingScopeError(data.needed || fallbackScope, operation);
+  }
+}
 
 /**
  * Send a message to a Slack channel
@@ -128,8 +157,12 @@ export async function findChannelByName(options: {
   const data = await response.json() as {
     ok: boolean;
     channels?: Array<{ id: string; name: string; [key: string]: any }>;
-    error?: string
+    error?: string;
+    needed?: string;
   };
+
+  // Check for missing scope error first
+  checkForMissingScopeError(data, 'listing channels', 'channels:read');
 
   if (!data.ok || !data.channels) {
     throw new Error(`Failed to list channels: ${data.error || 'Unknown error'}`);
@@ -161,8 +194,12 @@ export async function getSlackChannelInfo(options: {
   const data = await response.json() as {
     ok: boolean;
     channel?: { topic: { value: string } };
-    error?: string
+    error?: string;
+    needed?: string;
   };
+
+  // Check for missing scope error first
+  checkForMissingScopeError(data, 'getting channel info', 'channels:read');
 
   if (!data.ok || !data.channel) {
     throw new Error(`Failed to get channel info: ${data.error || 'Unknown error'}`);
@@ -197,7 +234,10 @@ export async function updateSlackChannelTopic(options: {
     body: JSON.stringify(payload)
   });
 
-  const data = await response.json() as { ok: boolean; error?: string };
+  const data = await response.json() as { ok: boolean; error?: string; needed?: string };
+
+  // Check for missing scope error first
+  checkForMissingScopeError(data, 'updating channel topic', 'channels:write.topic');
 
   if (!data.ok) {
     throw new Error(`Failed to update channel topic: ${data.error || 'Unknown error'}`);
