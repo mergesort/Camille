@@ -122,16 +122,17 @@ export function createLeaderboardRegex(botId: string | undefined): RegExp {
 /**
  * Create a lost hours modifier regex for a specific channel ID
  * Matches Slack channel mentions like <#C12345678|lost-hours> or <#C12345678>
- * followed by += or -= and a number
+ * followed by +N/-N or +=N/-=N (e.g., #lost-hours +2, #lost-hours -= 1.5)
  * @param channelId The channel ID to match
  * @returns A RegExp that matches lost hours modifier commands for that channel
  *          Capture group 1: operator (+ or -)
  *          Capture group 2: the number value
  */
 export function createLostHoursIncrementRegex(channelId: string): RegExp {
-  // Match: <#CHANNELID|name> or <#CHANNELID> or <#CHANNELID|> followed by += or -= and a number
-  // Supports integers and decimals
+  // Match: <#CHANNELID|name> or <#CHANNELID> or <#CHANNELID|> followed by +N/-N or +=N/-=N
+  // Supports integers and decimals (e.g., +2, -1, += 0.5, -= 1.5)
+  // The = is optional to support both syntaxes
   // Note: [^>]* allows zero or more chars after | (Slack sometimes sends empty name)
-  const pattern = `<#${channelId}(?:\\|[^>]*)?>\\s*([+-])=\\s*(\\d+(?:\\.\\d+)?)`;
+  const pattern = `<#${channelId}(?:\\|[^>]*)?>\\s*([+-])=?\\s*(\\d+(?:\\.\\d+)?)`;
   return new RegExp(pattern, 'gi');
 }
