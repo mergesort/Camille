@@ -8,8 +8,16 @@ import { Logger } from '../../shared/logging/logger';
 import { Config } from '../../shared/config/config';
 import * as messaging from '../../shared/slack/messaging';
 
-// Mock the messaging module
-jest.mock('../../shared/slack/messaging');
+// Mock the messaging module but keep the real MissingScopeError
+jest.mock('../../shared/slack/messaging', () => {
+  const actual = jest.requireActual('../../shared/slack/messaging') as typeof messaging;
+  return {
+    ...actual,
+    findChannelByName: jest.fn(),
+    getSlackChannelInfo: jest.fn(),
+    updateSlackChannelTopic: jest.fn()
+  };
+});
 
 // Type the mocks properly
 const mockedFindChannelByName = messaging.findChannelByName as jest.MockedFunction<typeof messaging.findChannelByName>;
@@ -229,5 +237,42 @@ describe('Lost Hours Processing', () => {
         topic: expect.stringContaining('10,000 hours')
       })
     );
+  });
+
+  test('should handle missing channels:read scope error', async () => {
+    const message = '<#C12345678|lost-hours> += 5';
+    const userId = 'U12345';
+
+    // Mock findChannelByName to throw MissingScopeError
+    mockedFindChannelByName.mockRejectedValue(
+      new messaging.MissingScopeError('channels:read', 'listing channels')
+    );
+
+    const result = await processLostHoursMessage(message, userId, mockLogger, mockConfig);
+
+    expect(result.status).toBe('error');
+    expect(result.response).toContain('channels:read');
+    expect(result.response).toContain('OAuth scope');
+  });
+
+  test('should handle missing channels:write.topic scope error', async () => {
+    const message = '<#C12345678|lost-hours> += 5';
+    const userId = 'U12345';
+
+    mockedFindChannelByName.mockResolvedValue('C12345678');
+    mockedGetSlackChannelInfo.mockResolvedValue({
+      topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 1286 hours lost since June 29, 2017'
+    });
+
+    // Mock updateSlackChannelTopic to throw MissingScopeError
+    mockedUpdateSlackChannelTopic.mockRejectedValue(
+      new messaging.MissingScopeError('channels:write.topic', 'updating channel topic')
+    );
+
+    const result = await processLostHoursMessage(message, userId, mockLogger, mockConfig);
+
+    expect(result.status).toBe('error');
+    expect(result.response).toContain('channels:write.topic');
+    expect(result.response).toContain('OAuth scope');
   });
 });
