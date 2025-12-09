@@ -60,3 +60,7 @@ pnpm-lock.yaml
 camille-bot/.dev.vars
 camille-bot/wrangler.toml
 camille-bot/wrangler.dev.toml
+
+# Claude Code specific files
+CLAUDE.local.md
+.claude/**/*.local.*
