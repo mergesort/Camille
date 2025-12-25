@@ -11,6 +11,8 @@ import {
   findChannelByName,
   getSlackChannelInfo,
   updateSlackChannelTopic,
+  updateSlackChannelDescription,
+  sendSlackMessage,
   MissingScopeError
 } from '../shared/slack/messaging';
 
@@ -55,10 +57,12 @@ export function resetLostHoursChannelCache(): void {
 
 /**
  * Process a message for lost-hours increment commands
+ * @param sourceChannel - The channel where the message was posted (used to cross-post context to #lost-hours)
  */
 export async function processLostHoursMessage(
   messageText: string,
   userId: string,
+  sourceChannel: string,
   logger: Logger,
   config: Config
 ): Promise<LostHoursResult> {
@@ -209,10 +213,16 @@ export async function processLostHoursMessage(
     // Generate updated topic
     const newTopic = generateUpdatedTopic(currentTopic, newHours, logger);
 
-    // Update the channel topic
+    // Update both the channel topic and description (they should stay in sync)
     await updateSlackChannelTopic({
       channel: lostHoursChannelId,
       topic: newTopic,
+      token: config.slackApiToken
+    });
+
+    await updateSlackChannelDescription({
+      channel: lostHoursChannelId,
+      purpose: newTopic,
       token: config.slackApiToken
     });
 
@@ -222,6 +232,24 @@ export async function processLostHoursMessage(
       newHours,
       userId
     });
+
+    // If the message came from a different channel, cross-post context to #lost-hours
+    if (sourceChannel !== lostHoursChannelId) {
+      const context = extractContextFromMessage(messageText, match);
+      const crossPostMessage = formatCrossPostMessage(userId, rawValue, changeValue, context);
+
+      await sendSlackMessage({
+        channel: lostHoursChannelId,
+        text: crossPostMessage,
+        token: config.slackApiToken
+      });
+
+      logger.info('Cross-posted lost hours context to #lost-hours', {
+        sourceChannel,
+        userId,
+        context: context.substring(0, 100)
+      });
+    }
 
     // Format success response
     const response = formatSuccessResponse(currentHours, newHours, changeValue);
@@ -351,4 +379,44 @@ function formatSuccessResponse(oldHours: number, newHours: number, change: numbe
   const sign = change >= 0 ? '+' : '-';
 
   return `Lost hours updated: ${formattedOld} → ${formattedNew} (${sign}${absChange} hours)`;
+}
+
+/**
+ * Extract context from the message (text after the lost-hours pattern)
+ */
+function extractContextFromMessage(messageText: string, match: RegExpExecArray): string {
+  // Get text after the match (e.g., "#lost-hours += 5 debugging auth" -> "debugging auth")
+  const afterMatch = messageText.substring(match.index + match[0].length).trim();
+
+  // If there's text after the pattern, return it
+  if (afterMatch) {
+    return afterMatch;
+  }
+
+  // Check for text before the pattern as well
+  const beforeMatch = messageText.substring(0, match.index).trim();
+
+  return beforeMatch;
+}
+
+/**
+ * Format the cross-post message for #lost-hours
+ */
+function formatCrossPostMessage(
+  userId: string,
+  rawValue: number,
+  changeValue: number,
+  context: string
+): string {
+  const absValue = Math.abs(rawValue);
+  const hoursWord = absValue === 1 ? 'hour' : 'hours';
+
+  // Different wording based on whether hours were added or recovered
+  const action = changeValue >= 0 ? 'lost' : 'recovered';
+
+  if (context) {
+    return `<@${userId}> ${action} ${absValue} ${hoursWord}: ${context}`;
+  }
+
+  return `<@${userId}> ${action} ${absValue} ${hoursWord}`;
 }

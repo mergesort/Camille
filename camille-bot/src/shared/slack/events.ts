@@ -268,7 +268,7 @@ async function handleMessageEvent(
 
     // Process for lost-hours tracking
     try {
-      const lostHoursResult = await processLostHoursMessage(event.text, event.user, logger, config);
+      const lostHoursResult = await processLostHoursMessage(event.text, event.user, event.channel, logger, config);
 
       // If lost hours were processed successfully, send confirmation in thread
       if (lostHoursResult.response && config.slackApiToken) {
