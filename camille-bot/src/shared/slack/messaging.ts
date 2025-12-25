@@ -4,21 +4,10 @@
  * Utilities for sending messages and reactions to Slack
  */
 
-/**
- * Custom error class for missing Slack OAuth scopes
- */
-export class MissingScopeError extends Error {
-  constructor(
-    public readonly neededScope: string,
-    public readonly operation: string
-  ) {
-    super(
-      `Missing OAuth scope: "${neededScope}" is required for ${operation}. ` +
-      `Please add this scope in your Slack app settings (OAuth & Permissions) and reinstall the app.`
-    );
-    this.name = 'MissingScopeError';
-  }
-}
+import { MissingScopeError } from './errors';
+
+// Re-export for backwards compatibility
+export { MissingScopeError } from './errors';
 
 /**
  * Check if a Slack API error is a missing scope error and throw a helpful message
@@ -241,5 +230,39 @@ export async function updateSlackChannelTopic(options: {
 
   if (!data.ok) {
     throw new Error(`Failed to update channel topic: ${data.error || 'Unknown error'}`);
+  }
+}
+
+/**
+ * Update a Slack channel's description (purpose)
+ */
+export async function updateSlackChannelDescription(options: {
+  channel: string;
+  purpose: string;
+  token: string;
+}): Promise<void> {
+  const { channel, purpose, token } = options;
+
+  const payload = {
+    channel,
+    purpose
+  };
+
+  const response = await fetch('https://slack.com/api/conversations.setPurpose', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json() as { ok: boolean; error?: string; needed?: string };
+
+  // Check for missing scope error first
+  checkForMissingScopeError(data, 'updating channel description', 'channels:write.topic');
+
+  if (!data.ok) {
+    throw new Error(`Failed to update channel description: ${data.error || 'Unknown error'}`);
   }
 }
