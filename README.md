@@ -21,6 +21,12 @@ Camille is an extensible Slack bot designed to enhance community management and 
 - Content transformation (e.g., X/Twitter links to reader-friendly versions)
 - Real-time message monitoring
 
+### ⏰ Lost Hours Tracking
+- Track cumulative hours lost to bugs and debugging
+- Simple syntax: mention #lost-hours with +N or -N
+- Automatically updates channel topic and description
+- Works from any channel in the workspace
+
 ### 💡 Help System
 - Easy-to-use help commands
 - Comprehensive command documentation
