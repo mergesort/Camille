@@ -41,6 +41,7 @@ This guide will walk you through setting up and testing the Camille Bot locally.
 
 ```
 API_HOST="your-ngrok-url-will-be-set-automatically"
+LOST_HOURS_CHANNEL_ID="C12345678"  # Optional: Channel ID for lost-hours tracking feature
 SLACK_API_TOKEN="xoxb-your-bot-token"
 SLACK_COMMUNITY_ID="your-slack-workspace-id"
 SLACK_SIGNING_SECRET="your-signing-secret"

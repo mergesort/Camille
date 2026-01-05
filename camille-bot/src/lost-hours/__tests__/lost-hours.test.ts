@@ -3,7 +3,7 @@
  */
 
 import { describe, test, expect, jest, beforeEach } from '@jest/globals';
-import { processLostHoursMessage, resetLostHoursChannelCache } from '../lost-hours';
+import { processLostHoursMessage } from '../lost-hours';
 import { Logger } from '../../shared/logging/logger';
 import { Config } from '../../shared/config/config';
 import * as messaging from '../../shared/slack/messaging';
@@ -13,7 +13,6 @@ jest.mock('../../shared/slack/messaging', () => {
   const actual = jest.requireActual('../../shared/slack/messaging') as typeof messaging;
   return {
     ...actual,
-    findChannelByName: jest.fn(),
     getSlackChannelInfo: jest.fn(),
     updateSlackChannelTopic: jest.fn(),
     updateSlackChannelDescription: jest.fn(),
@@ -22,7 +21,6 @@ jest.mock('../../shared/slack/messaging', () => {
 });
 
 // Type the mocks properly
-const mockedFindChannelByName = messaging.findChannelByName as jest.MockedFunction<typeof messaging.findChannelByName>;
 const mockedGetSlackChannelInfo = messaging.getSlackChannelInfo as jest.MockedFunction<typeof messaging.getSlackChannelInfo>;
 const mockedUpdateSlackChannelTopic = messaging.updateSlackChannelTopic as jest.MockedFunction<typeof messaging.updateSlackChannelTopic>;
 const mockedUpdateSlackChannelDescription = messaging.updateSlackChannelDescription as jest.MockedFunction<typeof messaging.updateSlackChannelDescription>;
@@ -40,9 +38,6 @@ describe('Lost Hours Processing', () => {
     // Reset mocks
     jest.clearAllMocks();
 
-    // Reset channel cache
-    resetLostHoursChannelCache();
-
     // Setup mock logger
     mockLogger = {
       debug: jest.fn(),
@@ -54,6 +49,7 @@ describe('Lost Hours Processing', () => {
     // Setup mock config
     mockConfig = {
       apiHost: 'https://api.example.com',
+      lostHoursChannelId: LOST_HOURS_CHANNEL_ID,
       slackApiToken: 'xoxb-test-token',
       slackBotId: 'B12345',
       slackCommunityId: 'T12345',
@@ -64,9 +60,6 @@ describe('Lost Hours Processing', () => {
   test('should detect <#CHANNELID|lost-hours> += 5 pattern', async () => {
     const message = 'Just spent 5 hours debugging this issue <#C12345678|lost-hours> += 5';
     const userId = 'U12345';
-
-    // Mock channel lookup
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
 
     // Mock channel info response
     mockedGetSlackChannelInfo.mockResolvedValue({
@@ -90,7 +83,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours> += 2.5';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 100 hours lost since June 29, 2017'
     });
@@ -108,7 +100,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours>   +=   10';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 1286 hours lost since June 29, 2017'
     });
@@ -125,7 +116,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678> += 7';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 1000 hours lost since June 29, 2017'
     });
@@ -143,8 +133,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours> += 0';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
-
     const result = await processLostHoursMessage(message, userId, LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
 
     expect(result.status).toBe('error');
@@ -154,8 +142,6 @@ describe('Lost Hours Processing', () => {
   test('should reject malformed negative syntax += -5 with helpful feedback', async () => {
     const message = '<#C12345678|lost-hours> += -5';
     const userId = 'U12345';
-
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
 
     const result = await processLostHoursMessage(message, userId, LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
 
@@ -168,8 +154,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours> -= -5';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
-
     const result = await processLostHoursMessage(message, userId, LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
 
     expect(result.status).toBe('error');
@@ -179,8 +163,6 @@ describe('Lost Hours Processing', () => {
   test('should reject unreasonably large increments', async () => {
     const message = '<#C12345678|lost-hours> += 9999';
     const userId = 'U12345';
-
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
 
     const result = await processLostHoursMessage(message, userId, LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
 
@@ -199,23 +181,21 @@ describe('Lost Hours Processing', () => {
     expect(result.response).toContain('missing API token');
   });
 
-  test('should handle channel not found', async () => {
+  test('should silently skip when channel ID not configured', async () => {
     const message = '<#C12345678|lost-hours> += 5';
     const userId = 'U12345';
+    const configWithoutChannelId = { ...mockConfig, lostHoursChannelId: undefined };
 
-    mockedFindChannelByName.mockResolvedValue(null);
+    const result = await processLostHoursMessage(message, userId, LOST_HOURS_CHANNEL_ID, mockLogger, configWithoutChannelId);
 
-    const result = await processLostHoursMessage(message, userId, LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
-
-    expect(result.status).toBe('error');
-    expect(result.response).toContain('could not find');
+    expect(result.status).toBe('no_match');
+    expect(result.response).toBe(null);
   });
 
   test('should handle topic parsing errors gracefully', async () => {
     const message = '<#C12345678|lost-hours> += 5';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'This is not the expected format'
     });
@@ -230,8 +210,6 @@ describe('Lost Hours Processing', () => {
     const message = 'Just a regular message';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
-
     const result = await processLostHoursMessage(message, userId, LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
 
     expect(result.status).toBe('no_match');
@@ -242,7 +220,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours> += 5';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockRejectedValue(
       new Error('Slack API error')
     );
@@ -257,7 +234,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours> += 100';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 9,900 hours lost since June 29, 2017'
     });
@@ -277,27 +253,10 @@ describe('Lost Hours Processing', () => {
     );
   });
 
-  test('should handle missing channels:read scope error', async () => {
-    const message = '<#C12345678|lost-hours> += 5';
-    const userId = 'U12345';
-
-    // Mock findChannelByName to throw MissingScopeError
-    mockedFindChannelByName.mockRejectedValue(
-      new messaging.MissingScopeError('channels:read', 'listing channels')
-    );
-
-    const result = await processLostHoursMessage(message, userId, LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
-
-    expect(result.status).toBe('error');
-    expect(result.response).toContain('channels:read');
-    expect(result.response).toContain('OAuth scope');
-  });
-
   test('should handle missing channels:write.topic scope error', async () => {
     const message = '<#C12345678|lost-hours> += 5';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 1286 hours lost since June 29, 2017'
     });
@@ -318,7 +277,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours> += 5';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 1286 hours lost since June 29, 2017'
     });
@@ -337,43 +295,10 @@ describe('Lost Hours Processing', () => {
     expect(topicCall.topic).toBe(descriptionCall.purpose);
   });
 
-  test('should cache channel ID and not call findChannelByName on subsequent requests', async () => {
-    // First message - should call findChannelByName
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
-    mockedGetSlackChannelInfo.mockResolvedValue({
-      topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 100 hours lost since June 29, 2017'
-    });
-    mockedUpdateSlackChannelTopic.mockResolvedValue(undefined);
-    mockedUpdateSlackChannelDescription.mockResolvedValue(undefined);
-
-    const result1 = await processLostHoursMessage('<#C12345678|lost-hours> += 1', 'U1', LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
-    expect(result1.status).toBe('success');
-    expect(mockedFindChannelByName).toHaveBeenCalledTimes(1);
-
-    // Second message - should NOT call findChannelByName (cached)
-    mockedGetSlackChannelInfo.mockResolvedValue({
-      topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 101 hours lost since June 29, 2017'
-    });
-
-    const result2 = await processLostHoursMessage('<#C12345678|lost-hours> += 2', 'U2', LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
-    expect(result2.status).toBe('success');
-    expect(mockedFindChannelByName).toHaveBeenCalledTimes(1); // Still 1, not 2
-
-    // Third message - should still use cache
-    mockedGetSlackChannelInfo.mockResolvedValue({
-      topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 103 hours lost since June 29, 2017'
-    });
-
-    const result3 = await processLostHoursMessage('<#C12345678|lost-hours> += 3', 'U3', LOST_HOURS_CHANNEL_ID, mockLogger, mockConfig);
-    expect(result3.status).toBe('success');
-    expect(mockedFindChannelByName).toHaveBeenCalledTimes(1); // Still 1, not 3
-  });
-
   test('should cross-post context message to #lost-hours when posting from another channel', async () => {
     const message = '<#C12345678|lost-hours> += 3 debugging a weird race condition in the auth flow';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 100 hours lost since June 29, 2017'
     });
@@ -404,7 +329,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours> += 5 debugging something';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 100 hours lost since June 29, 2017'
     });
@@ -423,7 +347,6 @@ describe('Lost Hours Processing', () => {
     const message = '<#C12345678|lost-hours> -= 2 found a simpler solution';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 100 hours lost since June 29, 2017'
     });
@@ -445,7 +368,6 @@ describe('Lost Hours Processing', () => {
     const message = 'Spent way too long on this bug <#C12345678|lost-hours> += 4';
     const userId = 'U12345';
 
-    mockedFindChannelByName.mockResolvedValue(LOST_HOURS_CHANNEL_ID);
     mockedGetSlackChannelInfo.mockResolvedValue({
       topic: 'Bugs you lost hours on, and how you solved them. Cumulatively, 100 hours lost since June 29, 2017'
     });

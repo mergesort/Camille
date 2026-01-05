@@ -61,6 +61,7 @@ cp wrangler.toml.example.toml wrangler.dev.toml
 4. Edit required configuration values:
 
 - `API_HOST`: The host URL for the API
+- `LOST_HOURS_CHANNEL_ID`: (Optional) Channel ID for lost-hours tracking feature
 - `SLACK_API_TOKEN`: Slack Bot User OAuth Token
 - `SLACK_BOT_ID`: The bot's Slack User ID
 - `SLACK_COMMUNITY_ID`: Your Slack workspace ID

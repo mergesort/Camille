@@ -7,7 +7,6 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import {
   MissingScopeError,
-  findChannelByName,
   getSlackChannelInfo,
   updateSlackChannelTopic
 } from '../messaging';
@@ -39,88 +38,6 @@ describe('MissingScopeError', () => {
     const error = new MissingScopeError('channels:read', 'listing channels');
 
     expect(error.message).toContain('reinstall');
-  });
-});
-
-describe('findChannelByName', () => {
-  beforeEach(() => {
-    mockFetch.mockReset();
-  });
-
-  test('should throw MissingScopeError when channels:read scope is missing', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ok: false,
-        error: 'missing_scope',
-        needed: 'channels:read'
-      })
-    } as Response);
-
-    await expect(
-      findChannelByName({ channelName: 'test-channel', token: 'test-token' })
-    ).rejects.toThrow(MissingScopeError);
-
-    try {
-      await findChannelByName({ channelName: 'test-channel', token: 'test-token' });
-    } catch (error) {
-      expect(error).toBeInstanceOf(MissingScopeError);
-      expect((error as MissingScopeError).neededScope).toBe('channels:read');
-    }
-  });
-
-  test('should return channel ID when found', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ok: true,
-        channels: [
-          { id: 'C12345', name: 'test-channel' },
-          { id: 'C67890', name: 'other-channel' }
-        ]
-      })
-    } as Response);
-
-    const result = await findChannelByName({
-      channelName: 'test-channel',
-      token: 'test-token'
-    });
-
-    expect(result).toBe('C12345');
-  });
-
-  test('should return null when channel not found', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ok: true,
-        channels: [{ id: 'C67890', name: 'other-channel' }]
-      })
-    } as Response);
-
-    const result = await findChannelByName({
-      channelName: 'non-existent',
-      token: 'test-token'
-    });
-
-    expect(result).toBeNull();
-  });
-
-  test('should normalize channel name by removing # prefix', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ok: true,
-        channels: [{ id: 'C12345', name: 'test-channel' }]
-      })
-    } as Response);
-
-    const result = await findChannelByName({
-      channelName: '#test-channel',
-      token: 'test-token'
-    });
-
-    expect(result).toBe('C12345');
   });
 });
 

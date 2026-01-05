@@ -8,7 +8,6 @@ import { Logger } from '../shared/logging/logger';
 import { Config } from '../shared/config/config';
 import { createLostHoursIncrementRegex, createLostHoursMalformedNegativeRegex } from '../shared/regex/patterns';
 import {
-  findChannelByName,
   getSlackChannelInfo,
   updateSlackChannelTopic,
   updateSlackChannelDescription,
@@ -45,16 +44,6 @@ export interface LostHoursResult {
   increment?: number;
 }
 
-// Cache for the lost-hours channel ID (to avoid repeated lookups)
-let lostHoursChannelId: string | null = null;
-
-/**
- * Reset the cached channel ID (for testing)
- */
-export function resetLostHoursChannelCache(): void {
-  lostHoursChannelId = null;
-}
-
 /**
  * Process a message for lost-hours increment commands
  * @param sourceChannel - The channel where the message was posted (used to cross-post context to #lost-hours)
@@ -81,26 +70,14 @@ export async function processLostHoursMessage(
       };
     }
 
-    // Find the #lost-hours channel first (use cached ID if available)
-    // We need this to create the regex pattern
+    // Ensure we have the lost-hours channel ID configured
+    const lostHoursChannelId = config.lostHoursChannelId;
     if (!lostHoursChannelId) {
-      logger.debug('Looking up #lost-hours channel by name');
-      lostHoursChannelId = await findChannelByName({
-        channelName: 'lost-hours',
-        token: config.slackApiToken
-      });
-
-      if (!lostHoursChannelId) {
-        logger.error('Could not find #lost-hours channel');
-        return {
-          status: ProcessingStatus.ERROR,
-          response: 'Sorry, I could not find the #lost-hours channel.'
-        };
-      }
-
-      logger.info('Found #lost-hours channel', { channelId: lostHoursChannelId });
-    } else {
-      logger.debug('Using cached #lost-hours channel ID', { channelId: lostHoursChannelId });
+      logger.debug('Lost hours feature not configured: LOST_HOURS_CHANNEL_ID not set');
+      return {
+        status: ProcessingStatus.NO_MATCH,
+        response: null
+      };
     }
 
     // First check for malformed syntax like += -5 or -= -5

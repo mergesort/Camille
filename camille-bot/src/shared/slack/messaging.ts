@@ -124,46 +124,6 @@ export async function addSlackReaction(options: {
 }
 
 /**
- * Find a channel by name
- */
-export async function findChannelByName(options: {
-  channelName: string;
-  token: string;
-}): Promise<string | null> {
-  const { channelName, token } = options;
-
-  // Remove # prefix if present
-  const normalizedName = channelName.replace(/^#/, '');
-
-  const response = await fetch('https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=1000', {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-  });
-
-  const data = await response.json() as {
-    ok: boolean;
-    channels?: Array<{ id: string; name: string; [key: string]: any }>;
-    error?: string;
-    needed?: string;
-  };
-
-  // Check for missing scope error first
-  checkForMissingScopeError(data, 'listing channels', 'channels:read');
-
-  if (!data.ok || !data.channels) {
-    throw new Error(`Failed to list channels: ${data.error || 'Unknown error'}`);
-  }
-
-  // Find the channel by name
-  const channel = data.channels.find(ch => ch.name === normalizedName);
-
-  return channel ? channel.id : null;
-}
-
-/**
  * Get a Slack channel's information including topic
  */
 export async function getSlackChannelInfo(options: {
