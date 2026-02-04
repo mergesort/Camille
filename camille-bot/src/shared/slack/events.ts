@@ -24,7 +24,8 @@ export interface SlackEventHandlerOptions {
 
 export async function handleSlackEvent(
   request: Request,
-  options: SlackEventHandlerOptions
+  options: SlackEventHandlerOptions,
+  ctx?: ExecutionContext
 ): Promise<Response> {
   const { logger, config, storage } = options;
   
@@ -32,6 +33,8 @@ export async function handleSlackEvent(
     // Get headers for signature verification
     const slackSignature = request.headers.get('x-slack-signature');
     const slackTimestamp = request.headers.get('x-slack-request-timestamp');
+    const slackRetryNum = request.headers.get('x-slack-retry-num');
+    const slackRetryReason = request.headers.get('x-slack-retry-reason');
     
     // Read request body as text
     const bodyText = await request.text();
@@ -41,7 +44,9 @@ export async function handleSlackEvent(
       bodyPreview: bodyText.substring(0, 200),
       headers: {
         signature: slackSignature ? '✓' : '✗',
-        timestamp: slackTimestamp
+        timestamp: slackTimestamp,
+        retryNum: slackRetryNum,
+        retryReason: slackRetryReason
       }
     });
     
@@ -85,19 +90,31 @@ export async function handleSlackEvent(
       type: body.event?.type || "unknown",
       team: body.team_id,
       eventId: body.event_id,
-      timestamp: body.event_time
+      timestamp: body.event_time,
+      retryNum: slackRetryNum,
+      retryReason: slackRetryReason
     });
-    
-    // Process message events
-    if (body.event?.type === 'message' && body.event?.text) {
-      await handleMessageEvent(body.event, options);
+
+    const processing = processSlackEvent(body, options, {
+      retryNum: slackRetryNum,
+      retryReason: slackRetryReason
+    });
+
+    if (ctx) {
+      logger.debug('ACKing Slack event and scheduling background processing', {
+        eventId: body.event_id,
+        team: body.team_id,
+        type: body.event?.type || 'unknown',
+        retryNum: slackRetryNum,
+        retryReason: slackRetryReason
+      });
+      ctx.waitUntil(processing);
+      return new Response("Event received", {
+        headers: { 'Content-Type': 'text/plain' }
+      });
     }
-    
-    // Process message deletion events
-    if (body.event?.type === 'message' && body.event?.subtype === 'message_deleted') {
-      await handleMessageDeletion(body.event, options);
-    }
-    
+
+    await processing;
     return new Response("Event received", {
       headers: { 'Content-Type': 'text/plain' }
     });
@@ -110,6 +127,82 @@ export async function handleSlackEvent(
     return new Response(`Error: ${error instanceof Error ? error.message : String(error)}`, {
       status: 500,
       headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+}
+
+const SLACK_EVENT_IDEMPOTENCY_TTL_SECONDS = 60 * 10; // 10 minutes
+
+async function processSlackEvent(
+  body: any,
+  options: SlackEventHandlerOptions,
+  metadata: { retryNum: string | null; retryReason: string | null }
+): Promise<void> {
+  const { logger, storage } = options;
+
+  const eventId = typeof body?.event_id === 'string' ? body.event_id : null;
+  const teamId = typeof body?.team_id === 'string' ? body.team_id : 'unknown-team';
+  const idempotencyKey = eventId ? `slack:event:${teamId}:${eventId}` : null;
+  const startTimeMs = Date.now();
+
+  logger.debug('Starting Slack event processing', {
+    eventId,
+    teamId,
+    envelopeType: body?.type,
+    eventType: body?.event?.type,
+    eventSubtype: body?.event?.subtype,
+    retryNum: metadata.retryNum,
+    retryReason: metadata.retryReason
+  });
+
+  try {
+    if (idempotencyKey) {
+      try {
+        const seen = await storage.get<{ receivedAt: string }>(idempotencyKey);
+        if (seen) {
+          logger.warn('Skipping duplicate Slack event', {
+            eventId,
+            teamId,
+            idempotencyKey,
+            retryNum: metadata.retryNum,
+            retryReason: metadata.retryReason,
+            firstReceivedAt: seen.receivedAt
+          });
+          return;
+        }
+
+        await storage.set(
+          idempotencyKey,
+          {
+            receivedAt: new Date().toISOString(),
+            retryNum: metadata.retryNum,
+            retryReason: metadata.retryReason
+          },
+          { expirationTtl: SLACK_EVENT_IDEMPOTENCY_TTL_SECONDS }
+        );
+      } catch (error) {
+        logger.error(
+          'Failed Slack event idempotency check/set',
+          error instanceof Error ? error : new Error(String(error)),
+          { eventId, teamId, idempotencyKey }
+        );
+      }
+    }
+
+    // Process message events
+    if (body.event?.type === 'message' && body.event?.text) {
+      await handleMessageEvent(body.event, options);
+    }
+
+    // Process message deletion events
+    if (body.event?.type === 'message' && body.event?.subtype === 'message_deleted') {
+      await handleMessageDeletion(body.event, options);
+    }
+  } finally {
+    logger.debug('Finished Slack event processing', {
+      eventId,
+      teamId,
+      durationMs: Date.now() - startTimeMs
     });
   }
 }
@@ -130,6 +223,11 @@ async function handleMessageEvent(
 
   // Skip processing bot messages to avoid loops
   if (event.bot_id || event.subtype === 'bot_message') {
+    return;
+  }
+
+  // Some bot messages may not have bot_id/subtype but will have our bot user id
+  if (config.slackBotId && event.user === config.slackBotId) {
     return;
   }
   
