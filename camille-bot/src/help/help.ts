@@ -68,6 +68,12 @@ function formatHelpMessage(): string {
 • When someone uses "hey guys" or similar phrases, Camille will kindly suggest more inclusive alternatives
 • When someone shares a Twitter/X link, Camille will provide a version that doesn't require an account
 
+*Lost Hours Tracking*
+• \`#lost-hours +N\` - Add N hours to the lost hours counter
+• \`#lost-hours -N\` - Subtract N hours from the counter
+• \`#lost-hours += N\` or \`#lost-hours -= N\` - Alternative syntax
+• Works from any channel in the workspace
+
 *Help*
 • \`@camille help\` - Show this help message
 

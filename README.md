@@ -21,6 +21,12 @@ Camille is an extensible Slack bot designed to enhance community management and 
 - Content transformation (e.g., X/Twitter links to reader-friendly versions)
 - Real-time message monitoring
 
+### ⏰ Lost Hours Tracking
+- Track cumulative hours lost to bugs and debugging
+- Simple syntax: mention #lost-hours with +N or -N
+- Automatically updates channel topic and description
+- Works from any channel in the workspace
+
 ### 💡 Help System
 - Easy-to-use help commands
 - Comprehensive command documentation
@@ -55,6 +61,7 @@ cp wrangler.toml.example.toml wrangler.dev.toml
 4. Edit required configuration values:
 
 - `API_HOST`: The host URL for the API
+- `LOST_HOURS_CHANNEL_ID`: (Optional) Channel ID for lost-hours tracking feature
 - `SLACK_API_TOKEN`: Slack Bot User OAuth Token
 - `SLACK_BOT_ID`: The bot's Slack User ID
 - `SLACK_COMMUNITY_ID`: Your Slack workspace ID

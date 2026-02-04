@@ -21,6 +21,8 @@ This guide will walk you through setting up and testing the Camille Bot locally.
 1. In the sidebar, navigate to "OAuth & Permissions"
 2. Scroll down to "Scopes" and add the following Bot Token Scopes:
    - `channels:history` - View messages in public channels
+   - `channels:read` - View basic channel info and list channels (required for lost-hours feature)
+   - `channels:write.topic` - Set the topic of public channels (required for lost-hours feature)
    - `chat:write` - Send messages as the app
    - `chat:write.customize` - Send messages with a customized username and avatar
    - `chat:write.public` - Send messages to channels the bot isn't a member of
@@ -39,6 +41,7 @@ This guide will walk you through setting up and testing the Camille Bot locally.
 
 ```
 API_HOST="your-ngrok-url-will-be-set-automatically"
+LOST_HOURS_CHANNEL_ID="C12345678"  # Optional: Channel ID for lost-hours tracking feature
 SLACK_API_TOKEN="xoxb-your-bot-token"
 SLACK_COMMUNITY_ID="your-slack-workspace-id"
 SLACK_SIGNING_SECRET="your-signing-secret"
