@@ -62,4 +62,21 @@ export interface SlackMessageResponse extends SlackApiResponse {
     text: string;
     blocks?: any[];
   };
+}
+
+/**
+ * Link shared event types for unfurling
+ */
+export interface SlackLinkSharedEvent {
+  type: 'link_shared';
+  channel: string;
+  user: string;
+  message_ts: string;
+  thread_ts?: string;
+  links: SlackLink[];
+}
+
+export interface SlackLink {
+  domain: string;
+  url: string;
 } 

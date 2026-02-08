@@ -83,13 +83,13 @@ export async function addSlackReaction(options: {
   token: string;
 }): Promise<void> {
   const { channel, timestamp, reaction, token } = options;
-  
+
   const payload = {
     channel,
     timestamp,
     name: reaction
   };
-  
+
   const response = await fetch('https://slack.com/api/reactions.add', {
     method: 'POST',
     headers: {
@@ -98,9 +98,57 @@ export async function addSlackReaction(options: {
     },
     body: JSON.stringify(payload)
   });
-  
+
   if (!response.ok) {
     const errorData = await response.text();
     throw new Error(`Failed to add reaction: ${errorData}`);
+  }
+}
+
+/**
+ * Unfurl attachment type for chat.unfurl API
+ */
+export interface UnfurlAttachment {
+  title?: string;
+  title_link?: string;
+  text?: string;
+  image_url?: string;
+  thumb_url?: string;
+  color?: string;
+  footer?: string;
+  footer_icon?: string;
+  ts?: number;
+}
+
+/**
+ * Send unfurls for links shared in a Slack message
+ */
+export async function sendSlackUnfurl(options: {
+  channel: string;
+  ts: string;
+  unfurls: Record<string, UnfurlAttachment>;
+  token: string;
+}): Promise<void> {
+  const { channel, ts, unfurls, token } = options;
+
+  const payload = {
+    channel,
+    ts,
+    unfurls
+  };
+
+  const response = await fetch('https://slack.com/api/chat.unfurl', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json() as { ok: boolean; error?: string };
+
+  if (!data.ok) {
+    throw new Error(`Failed to unfurl links: ${data.error || 'Unknown error'}`);
   }
 } 

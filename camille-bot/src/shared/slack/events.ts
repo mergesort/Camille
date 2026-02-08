@@ -14,7 +14,9 @@ import { processHelpCommand } from '../../help';
 import { processGreeting } from '../../greetings';
 import { processMessageForAutoResponse } from '../../auto-responder/auto-responder';
 import { processXLinks } from '../../x-transformer/x-transformer';
-import { sendSlackMessage, sendSlackEphemeralMessage, addSlackReaction } from './messaging';
+import { sendSlackMessage, sendSlackEphemeralMessage, addSlackReaction, sendSlackUnfurl } from './messaging';
+import { isBlueskyUrl, fetchBlueskyPost, formatUnfurl } from '../../bluesky-unfurl';
+import { SlackLinkSharedEvent } from './types';
 
 export interface SlackEventHandlerOptions {
   logger: Logger;
@@ -197,6 +199,11 @@ async function processSlackEvent(
     // Process message deletion events
     if (body.event?.type === 'message' && body.event?.subtype === 'message_deleted') {
       await handleMessageDeletion(body.event, options);
+    }
+
+    // Process link_shared events for unfurling
+    if (body.event?.type === 'link_shared') {
+      await handleLinkShared(body.event as SlackLinkSharedEvent, options);
     }
   } finally {
     logger.debug('Finished Slack event processing', {
@@ -454,14 +461,14 @@ async function handleMessageDeletion(
   options: SlackEventHandlerOptions
 ): Promise<void> {
   const { logger, storage } = options;
-  
+
   try {
     logger.debug('Processing message deletion event', {
       channel: event.channel,
       ts: event.ts,
       hasPreviousMessage: !!event.previous_message
     });
-    
+
     // Process the message deletion to clean up any links
     await processMessageDeletion(
       {
@@ -472,10 +479,79 @@ async function handleMessageDeletion(
       storage,
       logger
     );
-    
+
   } catch (error) {
     logger.error(
       'Error processing message deletion event',
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+}
+
+/**
+ * Handle a link_shared event from Slack for unfurling
+ */
+async function handleLinkShared(
+  event: SlackLinkSharedEvent,
+  options: SlackEventHandlerOptions
+): Promise<void> {
+  const { logger, config } = options;
+
+  try {
+    if (!config.slackApiToken) {
+      logger.error('Cannot process link_shared: API token is missing');
+      return;
+    }
+
+    // Filter to only Bluesky links
+    const blueskyLinks = event.links.filter((link) => isBlueskyUrl(link.url));
+
+    if (blueskyLinks.length === 0) {
+      return;
+    }
+
+    logger.debug('Processing Bluesky links for unfurling', {
+      channel: event.channel,
+      linkCount: blueskyLinks.length
+    });
+
+    // Fetch all posts in parallel
+    const results = await Promise.all(
+      blueskyLinks.map(async (link) => {
+        const result = await fetchBlueskyPost(link.url, logger);
+        return { url: link.url, result };
+      })
+    );
+
+    // Build unfurls object
+    const unfurls: Record<string, ReturnType<typeof formatUnfurl>> = {};
+
+    for (const { url, result } of results) {
+      if (result.status === 'success') {
+        unfurls[url] = formatUnfurl(result.post, result.postUrl);
+      } else {
+        logger.warn(`Failed to fetch Bluesky post for ${url}`, { error: result.message });
+      }
+    }
+
+    // Send unfurls to Slack if we have any
+    if (Object.keys(unfurls).length > 0) {
+      await sendSlackUnfurl({
+        channel: event.channel,
+        ts: event.message_ts,
+        unfurls,
+        token: config.slackApiToken
+      });
+
+      logger.info('Sent Bluesky unfurls', {
+        channel: event.channel,
+        unfurlCount: Object.keys(unfurls).length
+      });
+    }
+
+  } catch (error) {
+    logger.error(
+      'Error processing link_shared event',
       error instanceof Error ? error : new Error(String(error))
     );
   }
