@@ -9,6 +9,7 @@
 import { BlueskyPost, extractMedia, extractQuote, ExtractedQuote } from './bluesky';
 
 const BLUESKY_BLUE = '#0085ff';
+const BLUESKY_LOGO = 'https://bsky.app/static/apple-touch-icon.png';
 
 export interface SlackUnfurlAttachment {
   author_name?: string;
@@ -71,6 +72,9 @@ function formatAttachment(
     author_name: displayTitle,
     author_link: postUrl,
     ...(post.author.avatar && { author_icon: post.author.avatar }),
+    footer: 'Bluesky',
+    footer_icon: BLUESKY_LOGO,
+    ts: Math.floor(new Date(post.createdAt).getTime() / 1000),
   };
 
   // Track whether we've already embedded a link to the post in the text
