@@ -11,8 +11,9 @@ import { BlueskyPost, extractMedia, extractQuote, ExtractedQuote } from './blues
 const BLUESKY_BLUE = '#0085ff';
 
 export interface SlackUnfurlAttachment {
-  title?: string;
-  title_link?: string;
+  author_name?: string;
+  author_icon?: string;
+  author_link?: string;
   text?: string;
   image_url?: string;
   thumb_url?: string;
@@ -61,14 +62,15 @@ function formatAttachment(
   text: string | undefined
 ): SlackUnfurlAttachment {
   const authorName = post.author.displayName || post.author.handle;
-  const title = post.author.displayName
+  const displayTitle = post.author.displayName
     ? `${authorName} (@${post.author.handle})`
     : `@${post.author.handle}`;
 
   const attachment: SlackUnfurlAttachment = {
     color: BLUESKY_BLUE,
-    title,
-    title_link: postUrl,
+    author_name: displayTitle,
+    author_link: postUrl,
+    ...(post.author.avatar && { author_icon: post.author.avatar }),
   };
 
   // Track whether we've already embedded a link to the post in the text

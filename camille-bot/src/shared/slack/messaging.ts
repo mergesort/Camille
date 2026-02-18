@@ -111,6 +111,9 @@ export async function addSlackReaction(options: {
 export interface UnfurlAttachment {
   title?: string;
   title_link?: string;
+  author_name?: string;
+  author_icon?: string;
+  author_link?: string;
   text?: string;
   image_url?: string;
   thumb_url?: string;
