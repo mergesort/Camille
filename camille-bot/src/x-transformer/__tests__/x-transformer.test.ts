@@ -60,6 +60,17 @@ describe('X/Twitter Transformer Module', () => {
   });
   
   describe('processXLinks', () => {
+    test('should ignore bare x.com/twitter.com home-page domains', async () => {
+      const result = await processXLinks(
+        'App names only: x.com https://twitter.com and https://x.com/',
+        mockLogger
+      );
+
+      expect(result.hasXLinks).toBe(false);
+      expect(result.originalLinks).toHaveLength(0);
+      expect(result.transformedLinks).toHaveLength(0);
+    });
+
     test('should detect and transform a single X/Twitter link', async () => {
       const result = await processXLinks('Check out this post: https://x.com/mergesort/status/594915993060777984', mockLogger);
       
