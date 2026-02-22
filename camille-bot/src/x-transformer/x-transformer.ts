@@ -8,8 +8,34 @@ import { Logger } from '../shared/logging/logger';
 import { Config } from '../shared/config/config';
 import { KVStore } from '../shared/storage/kv-store';
 import { X_TWITTER_URL_REGEX } from '../shared/regex/patterns';
+import { isBareDomainUrl } from '../shared/links/url-utils';
 
 // Regex for detecting X/Twitter links
+const X_TWITTER_URL_EXACT_REGEX = new RegExp(`^${X_TWITTER_URL_REGEX.source}$`, 'i');
+
+function cleanSlackUrl(url: string): string {
+  let cleanUrl = url.replace(/[<>]/g, '').trim();
+
+  if (cleanUrl.includes('|')) {
+    cleanUrl = cleanUrl.split('|')[0].trim();
+  }
+
+  return cleanUrl;
+}
+
+function isBareXOrTwitterHomeUrl(url: string): boolean {
+  const cleanUrl = cleanSlackUrl(url);
+
+  if (!cleanUrl) {
+    return false;
+  }
+
+  if (!X_TWITTER_URL_EXACT_REGEX.test(cleanUrl)) {
+    return false;
+  }
+
+  return isBareDomainUrl(cleanUrl);
+}
 
 /**
  * Result from processing a message for X/Twitter links
@@ -23,25 +49,6 @@ export interface XTransformerResult {
   
   // Original links
   originalLinks: string[];
-}
-
-function isBareXOrTwitterHomeUrl(url: string): boolean {
-  const cleanUrl = url.replace(/[<>]/g, '').trim();
-  const urlWithoutLabel = cleanUrl.includes('|') ? cleanUrl.split('|')[0] : cleanUrl;
-
-  try {
-    const parsableUrl = /^(https?:\/\/)/i.test(urlWithoutLabel)
-      ? urlWithoutLabel
-      : `https://${urlWithoutLabel}`;
-    const parsedUrl = new URL(parsableUrl);
-    const host = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
-    const isXHost = host === 'x.com' || host === 'twitter.com';
-    const isRootPath = parsedUrl.pathname === '' || /^\/+$/.test(parsedUrl.pathname);
-
-    return isXHost && isRootPath && !parsedUrl.search && !parsedUrl.hash;
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -75,7 +82,7 @@ export async function processXLinks(
       const allTransformedLinks: string[] = [];
       
       for (const match of matches) {
-        // Ignore bare home-page domains so casual mentions like "x.com" don't trigger replies.
+        // Respect the shared bare-domain rule so casual mentions like "x.com" don't trigger replies.
         if (isBareXOrTwitterHomeUrl(match)) {
           continue;
         }

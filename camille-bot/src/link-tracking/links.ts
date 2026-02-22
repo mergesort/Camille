@@ -8,6 +8,7 @@ import { Logger } from '../shared/logging/logger';
 import { KVStore } from '../shared/storage/kv-store';
 import { storeLink, getLinkData, LinkData, normalizeUrl, LINK_KEY_PREFIX } from './storage';
 import { SLACK_FORMATTED_URL_REGEX } from '../shared/regex/patterns';
+import { isBareDomainUrl } from '../shared/links/url-utils';
 
 // Hosts that are allowlisted and shouldn't trigger "previously shared" notifications
 export const ALLOWLISTED_HOSTS = [
@@ -303,25 +304,6 @@ function extractLinks(text: string): string[] {
   
   // Return unique links
   return Array.from(new Set(slackLinks));
-}
-
-/**
- * Return true when the URL is just a host with no meaningful path/query/hash.
- * This treats protocol/no-protocol variants the same (e.g. hello.app, https://hello.app).
- */
-function isBareDomainUrl(url: string): boolean {
-  const candidate = url.trim();
-
-  try {
-    const parsableUrl = /^(https?:\/\/)/i.test(candidate) ? candidate : `https://${candidate}`;
-    const parsedUrl = new URL(parsableUrl);
-    const hasDomainLikeHost = parsedUrl.hostname.includes('.');
-    const hasOnlyRootPath = parsedUrl.pathname === '' || /^\/+$/.test(parsedUrl.pathname);
-
-    return hasDomainLikeHost && hasOnlyRootPath && !parsedUrl.search && !parsedUrl.hash;
-  } catch {
-    return false;
-  }
 }
 
 /**

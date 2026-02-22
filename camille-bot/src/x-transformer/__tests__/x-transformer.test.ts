@@ -138,6 +138,17 @@ describe('X/Twitter Transformer Module', () => {
       expect(result.transformedLinks).toHaveLength(0);
     });
 
+    test('should ignore bare X/Twitter domains', async () => {
+      const result = await processXLinks(
+        'Mentioning x.com, ios.horse, fxtwitter.com, and https://x.com/ should not trigger a reply',
+        mockLogger
+      );
+
+      expect(result.hasXLinks).toBe(false);
+      expect(result.originalLinks).toHaveLength(0);
+      expect(result.transformedLinks).toHaveLength(0);
+    });
+
     test('should handle errors gracefully', async () => {
       // Mock logger.debug to throw an error
       mockLogger.debug = jest.fn().mockImplementation(() => {
