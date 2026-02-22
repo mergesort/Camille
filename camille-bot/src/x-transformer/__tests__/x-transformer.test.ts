@@ -103,17 +103,28 @@ describe('X/Twitter Transformer Module', () => {
       expect(result.transformedLinks).toContain('https://xcancel.com/profile/user2');
     });
 
-    test('should handle alternative x links correctly', async () => {
+    test('should handle ios.horse links correctly', async () => {
       const result = await processXLinks(
-        'Check this link: https://ios.horse/profile/mergesort and this link: https://fxtwitter.com/profile/someone_else',
+        'Check this link: https://ios.horse/profile/mergesort',
         mockLogger
       );
 
       expect(result.hasXLinks).toBe(true);
-      expect(result.originalLinks).toHaveLength(2);
-      expect(result.transformedLinks).toHaveLength(2);
+      expect(result.originalLinks).toHaveLength(1);
+      expect(result.transformedLinks).toHaveLength(1);
       expect(result.transformedLinks[0]).toBe('https://xcancel.com/profile/mergesort');
-      expect(result.transformedLinks[1]).toBe('https://xcancel.com/profile/someone_else');
+    });
+
+    test('should handle fxtwitter.com links correctly', async () => {
+      const result = await processXLinks(
+        'Check this link: https://fxtwitter.com/profile/someone_else',
+        mockLogger
+      );
+
+      expect(result.hasXLinks).toBe(true);
+      expect(result.originalLinks).toHaveLength(1);
+      expect(result.transformedLinks).toHaveLength(1);
+      expect(result.transformedLinks[0]).toBe('https://xcancel.com/profile/someone_else');
     });
 
     test('should handle messages without X/Twitter links', async () => {

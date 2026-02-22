@@ -306,16 +306,35 @@ function extractLinks(text: string): string[] {
 }
 
 /**
+ * Return true when the URL is just a host with no meaningful path/query/hash.
+ * This treats protocol/no-protocol variants the same (e.g. hello.app, https://hello.app).
+ */
+function isBareDomainUrl(url: string): boolean {
+  const candidate = url.trim();
+
+  try {
+    const parsableUrl = /^(https?:\/\/)/i.test(candidate) ? candidate : `https://${candidate}`;
+    const parsedUrl = new URL(parsableUrl);
+    const hasDomainLikeHost = parsedUrl.hostname.includes('.');
+    const hasOnlyRootPath = parsedUrl.pathname === '' || /^\/+$/.test(parsedUrl.pathname);
+
+    return hasDomainLikeHost && hasOnlyRootPath && !parsedUrl.search && !parsedUrl.hash;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Determine if a URL represents an intentional link that should be tracked
  * This function implements strict filtering to avoid tracking casual domain mentions
  */
 function isIntentionalLink(url: string): boolean {
-  // 1. URLs with explicit protocols are always considered intentional
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return true;
+  // Bare domains should never be tracked, even if Slack added a protocol.
+  if (isBareDomainUrl(url)) {
+    return false;
   }
   
-  // 2. For URLs without protocols, check if they have meaningful paths
+  // For URLs without protocols, check if they have meaningful paths
   const parts = url.split('/');
   const domain = parts[0];
   const pathParts = parts.slice(1);
@@ -328,7 +347,7 @@ function isIntentionalLink(url: string): boolean {
     return true;
   }
   
-  // 3. Additional checks for bare domains that might be intentional
+  // Additional checks for URLs that include explicit targeting details.
   // Check for query parameters (indicates intentional sharing)
   if (url.includes('?') && url.includes('=')) {
     return true;
@@ -339,7 +358,7 @@ function isIntentionalLink(url: string): boolean {
     return true;
   }
   
-  // 4. Check for structural indicators of intentional links
+  // Check for structural indicators of intentional links
   // These patterns indicate the URL is likely meant to be a functional link
   
   // Subdomains (beyond www) often indicate intentional links
@@ -359,7 +378,7 @@ function isIntentionalLink(url: string): boolean {
     return true;
   }
   
-  // 5. Filter out simple bare domains using structural patterns
+  // Filter out simple bare domains using structural patterns
   // These patterns identify casual domain mentions vs intentional links
   
   // Single word + common TLD pattern (likely casual mention)
@@ -375,7 +394,7 @@ function isIntentionalLink(url: string): boolean {
     return false;
   }
   
-  // 6. For any other bare domains, be conservative and don't track them
+  // For any other bare domains, be conservative and don't track them
   // This errs on the side of not tracking rather than over-tracking
   return false;
 }

@@ -25,6 +25,25 @@ export interface XTransformerResult {
   originalLinks: string[];
 }
 
+function isBareXOrTwitterHomeUrl(url: string): boolean {
+  const cleanUrl = url.replace(/[<>]/g, '').trim();
+  const urlWithoutLabel = cleanUrl.includes('|') ? cleanUrl.split('|')[0] : cleanUrl;
+
+  try {
+    const parsableUrl = /^(https?:\/\/)/i.test(urlWithoutLabel)
+      ? urlWithoutLabel
+      : `https://${urlWithoutLabel}`;
+    const parsedUrl = new URL(parsableUrl);
+    const host = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
+    const isXHost = host === 'x.com' || host === 'twitter.com';
+    const isRootPath = parsedUrl.pathname === '' || /^\/+$/.test(parsedUrl.pathname);
+
+    return isXHost && isRootPath && !parsedUrl.search && !parsedUrl.hash;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Process a message to detect X/Twitter links and transform them to xcancel.com
  */
@@ -56,6 +75,11 @@ export async function processXLinks(
       const allTransformedLinks: string[] = [];
       
       for (const match of matches) {
+        // Ignore bare home-page domains so casual mentions like "x.com" don't trigger replies.
+        if (isBareXOrTwitterHomeUrl(match)) {
+          continue;
+        }
+
         result.originalLinks.push(match);
         
         // Transform to xcancel.com

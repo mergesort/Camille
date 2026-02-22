@@ -19,6 +19,10 @@ Camille is an extensible Slack bot built on Cloudflare Workers with TypeScript.
 - `project_docs/cloudflare_deployment.md` - Deployment instructions
 - `project_docs/documentation.md` - Running documentation
 
+## Pull Requests
+
+All PRs should be made against `mergesort/Camille`.
+
 ## Quick Start
 
 ```bash
