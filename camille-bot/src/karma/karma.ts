@@ -8,10 +8,9 @@ import { Logger } from '../shared/logging/logger';
 import { KVStore } from '../shared/storage/kv-store';
 import { Config } from '../shared/config/config';
 import { updateUserKarma, getUserKarma, KarmaData, getKarmaLeaderboard } from './storage';
-import { KVNamespace } from "@cloudflare/workers-types";
-import { z } from "zod";
-import { KARMA_KEY_PREFIX } from "./storage";
-import { 
+import { KVNamespace } from '@cloudflare/workers-types';
+import { KARMA_KEY_PREFIX } from './storage';
+import {
   KARMA_INCREMENT_REGEX,
   KARMA_DECREMENT_REGEX,
   KARMA_ADD_REGEX,
