@@ -134,14 +134,12 @@ export async function handleSlackEvent(
   }
 }
 
-const SLACK_EVENT_IDEMPOTENCY_TTL_SECONDS = 60 * 10; // 10 minutes
-
 async function processSlackEvent(
   body: any,
   options: SlackEventHandlerOptions,
   metadata: { retryNum: string | null; retryReason: string | null }
 ): Promise<void> {
-  const { logger, storage } = options;
+  const { logger } = options;
 
   const eventId = typeof body?.event_id === 'string' ? body.event_id : null;
   const teamId = typeof body?.team_id === 'string' ? body.team_id : 'unknown-team';
@@ -159,39 +157,6 @@ async function processSlackEvent(
   });
 
   try {
-    if (idempotencyKey) {
-      try {
-        const seen = await storage.get<{ receivedAt: string }>(idempotencyKey);
-        if (seen) {
-          logger.warn('Skipping duplicate Slack event', {
-            eventId,
-            teamId,
-            idempotencyKey,
-            retryNum: metadata.retryNum,
-            retryReason: metadata.retryReason,
-            firstReceivedAt: seen.receivedAt
-          });
-          return;
-        }
-
-        await storage.set(
-          idempotencyKey,
-          {
-            receivedAt: new Date().toISOString(),
-            retryNum: metadata.retryNum,
-            retryReason: metadata.retryReason
-          },
-          { expirationTtl: SLACK_EVENT_IDEMPOTENCY_TTL_SECONDS }
-        );
-      } catch (error) {
-        logger.error(
-          'Failed Slack event idempotency check/set',
-          error instanceof Error ? error : new Error(String(error)),
-          { eventId, teamId, idempotencyKey }
-        );
-      }
-    }
-
     // Process message events
     if (body.event?.type === 'message' && body.event?.text) {
       await handleMessageEvent(body.event, options);
