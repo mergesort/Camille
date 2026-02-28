@@ -143,7 +143,6 @@ async function processSlackEvent(
 
   const eventId = typeof body?.event_id === 'string' ? body.event_id : null;
   const teamId = typeof body?.team_id === 'string' ? body.team_id : 'unknown-team';
-  const idempotencyKey = eventId ? `slack:event:${teamId}:${eventId}` : null;
   const startTimeMs = Date.now();
 
   logger.debug('Starting Slack event processing', {

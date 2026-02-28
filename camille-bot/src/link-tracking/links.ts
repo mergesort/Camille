@@ -61,9 +61,6 @@ export async function processMessageLinks(
   // Check if any links have been shared before
   const contextResponses: Set<string> = new Set(); // Use a Set to avoid duplicate messages
   
-  // Store the normalized URLs we'll need to save later
-  const linksToStore: Array<{url: string, normalizedUrl: string}> = [];
-  
   // Prepare promises for all link lookups to run in parallel
   const linkLookupPromises = links.map(async (url) => {
     // Normalize the URL before lookup
@@ -74,12 +71,6 @@ export async function processMessageLinks(
       original: url,
       normalized: normalizedUrl,
       storageKey: `${LINK_KEY_PREFIX}${normalizedUrl}`
-    });
-    
-    // Add to our list of links to store after we're done with all checks
-    linksToStore.push({
-      url,
-      normalizedUrl
     });
     
     // Check from storage with error handling
@@ -114,6 +105,22 @@ export async function processMessageLinks(
     }
     
     if (existingLink) {
+      const isSameMessageLink =
+        existingLink.channelId === message.channel &&
+        existingLink.messageId === message.ts;
+
+      // Slack retries can re-deliver the same message event. If the stored link already
+      // points to this exact message, treat it as link-scoped idempotent and skip context.
+      if (isSameMessageLink) {
+        logger.debug('Skipping context for link already stored by this message', {
+          traceId,
+          url,
+          normalizedUrl,
+          messageTs: message.ts
+        });
+        continue;
+      }
+
       logger.debug('Found existing link', {
         traceId,
         existingLink,
@@ -212,8 +219,12 @@ export async function processMessageLinks(
     }
   }
   
-  // Prepare promises for storing all links in parallel
-  const storeLinkPromises = linksToStore.map(({ url, normalizedUrl }) => {
+  // Only store links that were not found during lookup.
+  // This avoids a second KV read inside storeLink's preserveOriginal guard.
+  const linksNeedingStore = linkResults.filter(result => !result.existingLink);
+
+  // Prepare promises for storing new links in parallel
+  const storeLinkPromises = linksNeedingStore.map(({ url, normalizedUrl }) => {
     const linkData = {
       url,
       channelId: message.channel,
@@ -224,7 +235,7 @@ export async function processMessageLinks(
     };
     
     // Return the promise to store in KV with error handling
-    return storeLink(normalizedUrl, linkData, storage).catch(error => {
+    return storeLink(normalizedUrl, linkData, storage, false).catch(error => {
       logger.error('Failed to store link', error instanceof Error ? error : new Error(String(error)), {
         traceId,
         url,
