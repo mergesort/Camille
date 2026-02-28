@@ -37,7 +37,7 @@ describe('Link Tracking', () => {
       mockKVStore.get.mockResolvedValue(null);
       
       const message = {
-        text: 'Check out <https://example.com> and <http://google.com>',
+        text: 'Check out <https://example.com/docs> and <http://google.com/search>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345'
@@ -46,8 +46,8 @@ describe('Link Tracking', () => {
       const result = await processMessageLinks(message, mockKVStore, mockLogger);
       
       expect(result.linksFound).toHaveLength(2);
-      expect(result.linksFound).toContain('https://example.com');
-      expect(result.linksFound).toContain('http://google.com');
+      expect(result.linksFound).toContain('https://example.com/docs');
+      expect(result.linksFound).toContain('http://google.com/search');
       expect(result.response).toBeUndefined();
       
       // Verify storage was called for both links
@@ -57,7 +57,7 @@ describe('Link Tracking', () => {
     test('should identify when a link was previously shared by another user', async () => {
       // Set up a previously shared link
       const previousLink = {
-        url: 'https://example-site.com',
+        url: 'https://example-site.com/article',
         channelId: 'C12345',
         messageId: '111111111.111111',
         userId: 'U54321', // Different user
@@ -73,7 +73,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Check out <https://example-site.com>',
+        text: 'Check out <https://example-site.com/article>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345'
@@ -83,7 +83,7 @@ describe('Link Tracking', () => {
       
       // Verify link was detected
       expect(result.linksFound).toHaveLength(1);
-      expect(result.linksFound).toContain('https://example-site.com');
+      expect(result.linksFound).toContain('https://example-site.com/article');
       
       // Verify response was generated
       expect(result.response).toBeDefined();
@@ -97,7 +97,7 @@ describe('Link Tracking', () => {
     test('should handle link URL variations and still detect previous shares', async () => {
       // Set up a previously shared link with one URL format
       const previousLink = {
-        url: 'https://example-site.com',
+        url: 'https://example-site.com/article',
         channelId: 'C12345',
         messageId: '111111111.111111',
         userId: 'U54321', // Different user
@@ -114,7 +114,7 @@ describe('Link Tracking', () => {
       
       // Use a different URL format in the new message
       const message = {
-        text: 'Check out <http://www.example-site.com>',
+        text: 'Check out <http://www.example-site.com/article>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345'
@@ -134,7 +134,7 @@ describe('Link Tracking', () => {
     test('should not notify when a user reshares their own link', async () => {
       // Set up a previously shared link by the same user
       const previousLink = {
-        url: 'https://example-site.com',
+        url: 'https://example-site.com/article',
         channelId: 'C12345',
         messageId: '111111111.111111',
         userId: 'U12345', // Same user
@@ -150,7 +150,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Resharing <https://example-site.com>',
+        text: 'Resharing <https://example-site.com/article>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345' // Same user
@@ -160,7 +160,7 @@ describe('Link Tracking', () => {
       
       // Verify link was detected
       expect(result.linksFound).toHaveLength(1);
-      expect(result.linksFound).toContain('https://example-site.com');
+      expect(result.linksFound).toContain('https://example-site.com/article');
       
       // TEMPORARILY COMMENTED OUT FOR TESTING
       // Verify no response was generated
@@ -174,7 +174,7 @@ describe('Link Tracking', () => {
     test('should create proper thread permalinks when original message was in a thread', async () => {
       // Set up a previously shared link in a thread
       const previousLink = {
-        url: 'https://example-site.com',
+        url: 'https://example-site.com/article',
         channelId: 'C12345',
         messageId: '111111111.111111',
         userId: 'U54321',
@@ -190,7 +190,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Check out <https://example-site.com>',
+        text: 'Check out <https://example-site.com/article>',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345',
@@ -216,7 +216,7 @@ describe('Link Tracking', () => {
     test('should correctly identify messages in the same thread', async () => {
       // Set up a previously shared link in a thread
       const previousLink = {
-        url: 'https://example-site.com',
+        url: 'https://example-site.com/article',
         channelId: 'C12345',
         messageId: '111111111.111111',
         userId: 'U54321',
@@ -232,7 +232,7 @@ describe('Link Tracking', () => {
       });
       
       const message = {
-        text: 'Check out <https://example-site.com> again',
+        text: 'Check out <https://example-site.com/article> again',
         ts: '123456789.123456',
         channel: 'C12345',
         user: 'U12345',
@@ -353,7 +353,7 @@ describe('Link Tracking', () => {
       
       test('should extract valid domains with numeric components', async () => {
         const message = {
-          text: 'Visit <http://123.io> and <https://456.com> for more information',
+          text: 'Visit <http://123.io/path> and <https://456.com/path> for more information',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -363,13 +363,13 @@ describe('Link Tracking', () => {
         
         // Should find these as they are valid domains with proper TLDs
         expect(result.linksFound).toHaveLength(2);
-        expect(result.linksFound).toContain('http://123.io');
-        expect(result.linksFound).toContain('https://456.com');
+        expect(result.linksFound).toContain('http://123.io/path');
+        expect(result.linksFound).toContain('https://456.com/path');
       });
       
       test('should extract domains with newer or less common TLDs', async () => {
         const message = {
-          text: 'Check out <https://plinky.ai> and <https://redpanda.club> and my website at <http://example.xyz>',
+          text: 'Check out <https://plinky.ai/docs> and <https://redpanda.club/news> and my website at <http://example.xyz/about>',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -379,14 +379,14 @@ describe('Link Tracking', () => {
         
         // Should find all three domains with different TLDs
         expect(result.linksFound).toHaveLength(3);
-        expect(result.linksFound).toContain('https://plinky.ai');
-        expect(result.linksFound).toContain('https://redpanda.club');
-        expect(result.linksFound).toContain('http://example.xyz');
+        expect(result.linksFound).toContain('https://plinky.ai/docs');
+        expect(result.linksFound).toContain('https://redpanda.club/news');
+        expect(result.linksFound).toContain('http://example.xyz/about');
       });
       
       test('should handle country-specific TLDs and numeric subdomain parts', async () => {
         const message = {
-          text: 'Sites to check: <https://gov.uk>, <http://123.music.jp>, and <https://web3.foundation>',
+          text: 'Sites to check: <https://gov.uk/services>, <http://123.music.jp/news>, and <https://web3.foundation/about>',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -396,9 +396,9 @@ describe('Link Tracking', () => {
         
         // Should find all three domains
         expect(result.linksFound).toHaveLength(3);
-        expect(result.linksFound).toContain('https://gov.uk');
-        expect(result.linksFound).toContain('http://123.music.jp');
-        expect(result.linksFound).toContain('https://web3.foundation');
+        expect(result.linksFound).toContain('https://gov.uk/services');
+        expect(result.linksFound).toContain('http://123.music.jp/news');
+        expect(result.linksFound).toContain('https://web3.foundation/about');
       });
       
       test('should handle karma commands with IP-like formats', async () => {
@@ -417,7 +417,7 @@ describe('Link Tracking', () => {
       
       test('should handle mixed content with karma commands and real links', async () => {
         const message = {
-          text: '<@U12345> += 11.4 points for sharing <https://github.com> and <@U67890> -= 2.6',
+          text: '<@U12345> += 11.4 points for sharing <https://github.com/mergesort> and <@U67890> -= 2.6',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -427,7 +427,7 @@ describe('Link Tracking', () => {
         
         // Should find only the GitHub link
         expect(result.linksFound).toHaveLength(1);
-        expect(result.linksFound[0]).toBe('https://github.com');
+        expect(result.linksFound[0]).toBe('https://github.com/mergesort');
       });
       
       test('should not extract URLs from inline code blocks', async () => {
@@ -460,7 +460,7 @@ describe('Link Tracking', () => {
       
       test('should still extract URLs outside of code blocks', async () => {
         const message = {
-          text: 'Check the docs at <https://github.com/mergesort/Camille> and here\'s some example code: `let url = "<https://example.com>"`',
+          text: 'Check the docs at <https://github.com/mergesort/Camille> and here\'s some example code: `let url = "<https://example.com/docs>"`',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -475,7 +475,7 @@ describe('Link Tracking', () => {
       
       test('should handle messages with both inline and multi-line code blocks', async () => {
         const message = {
-          text: 'Real link: <https://github.com> and code examples: `<https://example.com>` and ```\nvar url = "<https://test.com>";\n```',
+          text: 'Real link: <https://github.com/mergesort> and code examples: `<https://example.com/docs>` and ```\nvar url = "<https://test.com>";\n```',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -485,12 +485,12 @@ describe('Link Tracking', () => {
         
         // Should only extract real URL outside of code blocks
         expect(result.linksFound).toHaveLength(1);
-        expect(result.linksFound[0]).toBe('https://github.com');
+        expect(result.linksFound[0]).toBe('https://github.com/mergesort');
       });
       
       test('should detect Slack-formatted URLs', async () => {
         const message = {
-          text: 'Check out <https://example.com|Example Site> and <https://github.com>',
+          text: 'Check out <https://example.com/docs|Example Site> and <https://github.com/mergesort>',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -500,13 +500,13 @@ describe('Link Tracking', () => {
         
         // Should detect both links - one with display text and one without
         expect(result.linksFound).toHaveLength(2);
-        expect(result.linksFound).toContain('https://example.com');
-        expect(result.linksFound).toContain('https://github.com');
+        expect(result.linksFound).toContain('https://example.com/docs');
+        expect(result.linksFound).toContain('https://github.com/mergesort');
       });
       
       test('should not confuse user or channel mentions with links', async () => {
         const message = {
-          text: 'Hey <@U12345> check <#C12345> channel and see <https://example.com>',
+          text: 'Hey <@U12345> check <#C12345> channel and see <https://example.com/docs>',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -516,7 +516,7 @@ describe('Link Tracking', () => {
         
         // Should only detect the actual link, not the mentions
         expect(result.linksFound).toHaveLength(1);
-        expect(result.linksFound).toContain('https://example.com');
+        expect(result.linksFound).toContain('https://example.com/docs');
       });
 
       test('should detect domains when Slack auto-wraps them in brackets', async () => {
@@ -539,7 +539,7 @@ describe('Link Tracking', () => {
       test('should handle mixed bare and auto-wrapped domains', async () => {
         // This simulates a scenario where some domains are auto-wrapped and others aren't
         const message = {
-          text: 'Check out <sky.app> but also mentioned bsky.app and <https://github.com>',
+          text: 'Check out <sky.app> but also mentioned bsky.app and <https://github.com/mergesort>',
           ts: '123456789.123456',
           channel: 'C12345',
           user: 'U12345'
@@ -549,7 +549,7 @@ describe('Link Tracking', () => {
         
         // Should only detect the full URL with protocol, not the bare domains
         expect(result.linksFound).toHaveLength(1);
-        expect(result.linksFound).toContain('https://github.com');
+        expect(result.linksFound).toContain('https://github.com/mergesort');
         expect(result.linksFound).not.toContain('sky.app');
         expect(result.linksFound).not.toContain('bsky.app');
       });
@@ -627,23 +627,23 @@ describe('Link Tracking', () => {
           // Slack-wrapped with display text - should not be detected
           { text: '<hello.app|Hello App>', expected: 0 },
           
-          // With protocol - should be detected
-          { text: '<https://hello.app>', expected: 1 },
-          { text: '<http://hello.app>', expected: 1 },
+          // With protocol but no path/query/hash - still bare, should not be detected
+          { text: '<https://hello.app>', expected: 0 },
+          { text: '<http://hello.app>', expected: 0 },
           
           // With meaningful paths - should be detected
           { text: '<hello.app/path>', expected: 1 },
           { text: '<hello.app/docs/api>', expected: 1 },
           { text: '<simple.com/user/repo>', expected: 1 },
           
-          // With subdomains (beyond www) - should be detected
-          { text: '<api.hello.app>', expected: 1 },
-          { text: '<docs.example.com>', expected: 1 },
-          { text: '<mail.google.com>', expected: 1 },
+          // Bare subdomains (no path/query/hash) should also be ignored
+          { text: '<api.hello.app>', expected: 0 },
+          { text: '<docs.example.com>', expected: 0 },
+          { text: '<mail.google.com>', expected: 0 },
           
-          // With port numbers - should be detected
-          { text: '<example.com:8080>', expected: 1 },
-          { text: '<api.service.com:9000>', expected: 1 },
+          // Bare domains with ports (no path/query/hash) should be ignored
+          { text: '<example.com:8080>', expected: 0 },
+          { text: '<api.service.com:9000>', expected: 0 },
           
           // With query parameters - should be detected
           { text: '<hello.app?ref=123>', expected: 1 },
@@ -685,7 +685,7 @@ describe('Link Tracking', () => {
     test('should delete link reference when message is deleted', async () => {
       // Set up a test link that exists in storage
       const existingLink = {
-        url: 'https://example-site.com',
+        url: 'https://example-site.com/article',
         channelId: 'C12345',
         messageId: '123456789.123456',
         userId: 'U12345',
@@ -703,7 +703,7 @@ describe('Link Tracking', () => {
         ts: '123456789.123456',
         channel: 'C12345',
         previous_message: {
-          text: 'Check out <https://example-site.com>',
+          text: 'Check out <https://example-site.com/article>',
           ts: '123456789.123456',
           user: 'U12345'
         }
@@ -717,7 +717,7 @@ describe('Link Tracking', () => {
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'Message deletion: Deleting link reference',
         expect.objectContaining({
-          url: 'https://example-site.com',
+          url: 'https://example-site.com/article',
           messageTs: '123456789.123456'
         })
       );
@@ -726,7 +726,7 @@ describe('Link Tracking', () => {
     test('should not delete link reference when message is different', async () => {
       // Set up a test link that exists in storage but with a different message ID
       const existingLink = {
-        url: 'https://example-site.com',
+        url: 'https://example-site.com/article',
         channelId: 'C12345',
         messageId: '999999999.999999', // Different from the deleted message
         userId: 'U12345',
@@ -744,7 +744,7 @@ describe('Link Tracking', () => {
         ts: '123456789.123456',
         channel: 'C12345',
         previous_message: {
-          text: 'Check out <https://example-site.com>',
+          text: 'Check out <https://example-site.com/article>',
           ts: '123456789.123456', // Different from the stored link
           user: 'U12345'
         }
@@ -758,7 +758,7 @@ describe('Link Tracking', () => {
       expect(mockLogger.debug).toHaveBeenCalledWith(
         'Message deletion: Link reference not found or from different message',
         expect.objectContaining({
-          url: 'https://example-site.com',
+          url: 'https://example-site.com/article',
           messageTs: '123456789.123456'
         })
       );
@@ -769,7 +769,7 @@ describe('Link Tracking', () => {
       mockKVStore.get.mockImplementation(async (key: string) => {
         if (key.includes('example-site.com')) {
           return {
-            url: 'https://example-site.com',
+            url: 'https://example-site.com/article',
             channelId: 'C12345',
             messageId: '123456789.123456',
             userId: 'U12345',
@@ -777,7 +777,7 @@ describe('Link Tracking', () => {
           };
         } else if (key.includes('another-site.com')) {
           return {
-            url: 'https://another-site.com',
+            url: 'https://another-site.com/post',
             channelId: 'C12345',
             messageId: '123456789.123456',
             userId: 'U12345',
@@ -791,7 +791,7 @@ describe('Link Tracking', () => {
         ts: '123456789.123456',
         channel: 'C12345',
         previous_message: {
-          text: 'Check out <https://example-site.com> and <https://another-site.com>',
+          text: 'Check out <https://example-site.com/article> and <https://another-site.com/post>',
           ts: '123456789.123456',
           user: 'U12345'
         }

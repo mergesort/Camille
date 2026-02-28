@@ -70,7 +70,7 @@ export default {
               logger: eventLogger,
               config,
               storage,
-            });
+            }, ctx);
             
             return response;
           } catch (eventError: unknown) {
