@@ -6,6 +6,7 @@
 
 export interface Config {
   apiHost: string;
+  lostHoursChannelId?: string;
   slackApiToken?: string;
   slackBotId?: string;
   slackCommunityId: string;
@@ -15,6 +16,7 @@ export interface Config {
 export interface Env {
   API_HOST: string;
   kv: KVNamespace;
+  LOST_HOURS_CHANNEL_ID?: string;
   SLACK_API_TOKEN?: string;
   SLACK_BOT_ID?: string;
   SLACK_COMMUNITY_ID: string;
@@ -24,6 +26,7 @@ export interface Env {
 export function getConfig(env: Env): Config {
   return {
     apiHost: env.API_HOST,
+    lostHoursChannelId: env.LOST_HOURS_CHANNEL_ID,
     slackApiToken: env.SLACK_API_TOKEN,
     slackBotId: env.SLACK_BOT_ID,
     slackCommunityId: env.SLACK_COMMUNITY_ID,

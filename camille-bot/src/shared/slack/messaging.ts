@@ -1,8 +1,26 @@
 /**
  * Slack Messaging Functions
- * 
+ *
  * Utilities for sending messages and reactions to Slack
  */
+
+import { MissingScopeError } from './errors';
+
+// Re-export for backwards compatibility
+export { MissingScopeError } from './errors';
+
+/**
+ * Check if a Slack API error is a missing scope error and throw a helpful message
+ */
+function checkForMissingScopeError(
+  data: { ok: boolean; error?: string; needed?: string },
+  operation: string,
+  fallbackScope: string
+): void {
+  if (!data.ok && data.error === 'missing_scope') {
+    throw new MissingScopeError(data.needed || fallbackScope, operation);
+  }
+}
 
 /**
  * Send a message to a Slack channel

@@ -14,6 +14,7 @@ import { processHelpCommand } from '../../help';
 import { processGreeting } from '../../greetings';
 import { processMessageForAutoResponse } from '../../auto-responder/auto-responder';
 import { processXLinks } from '../../x-transformer/x-transformer';
+import { processLostHoursMessage } from '../../lost-hours';
 import { sendSlackMessage, sendSlackEphemeralMessage, addSlackReaction, sendSlackUnfurl } from './messaging';
 import { isBlueskyUrl, fetchBlueskyPost, formatUnfurl } from '../../bluesky-unfurl';
 import { SlackLinkSharedEvent } from './types';
@@ -369,7 +370,33 @@ async function handleMessageEvent(
       
       // Continue processing other features even after auto-response
     }
-    
+
+    // Process for lost-hours tracking
+    try {
+      const lostHoursResult = await processLostHoursMessage(event.text, event.user, event.channel, logger, config);
+
+      // If lost hours were processed successfully, send confirmation in thread
+      if (lostHoursResult.response && config.slackApiToken) {
+        await sendSlackMessage({
+          channel: event.channel,
+          text: lostHoursResult.response,
+          thread_ts: event.thread_ts || event.ts, // Always reply in thread
+          token: config.slackApiToken
+        });
+
+        logger.debug('Sent lost-hours confirmation', {
+          channel: event.channel,
+          oldHours: lostHoursResult.oldHours,
+          newHours: lostHoursResult.newHours,
+          increment: lostHoursResult.increment
+        });
+      }
+    } catch (error) {
+      logger.error('Error in lost-hours processing', error instanceof Error ? error : new Error(String(error)));
+    }
+
+    // Continue processing other features
+
     // Process for karma operations
     const karmaResult = await processKarmaMessage(
       event.text,
