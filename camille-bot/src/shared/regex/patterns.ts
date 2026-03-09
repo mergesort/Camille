@@ -12,14 +12,14 @@
  * @returns A RegExp that matches the specific bot command
  */
 export function createBotCommandRegex(
-  botId: string | undefined, 
-  command: string, 
+  botId: string | undefined,
+  command: string,
   captureContent = false
 ): RegExp {
-  const pattern = botId 
+  const pattern = botId
     ? `^<@${botId}(?:\\|[^>]+)?>\\s+${command}${captureContent ? '(?:\\s+(.*))?$' : '$'}`
     : `^<@[A-Z0-9]+(?:\\|[^>]+)?>\\s+${command}${captureContent ? '(?:\\s+(.*))?$' : '$'}`;
-  
+
   return new RegExp(pattern, 'i');
 }
 
@@ -42,7 +42,8 @@ export const SLACK_MENTION_REGEX = /<@([A-Z0-9]+)(?:\|[^>]+)?>/g;
  * Matches URLs formatted by Slack as <URL> or <URL|text>
  * This is the preferred pattern for link detection in Slack messages
  */
-export const SLACK_FORMATTED_URL_REGEX = /<((?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))[^>]*>/gi;
+export const SLACK_FORMATTED_URL_REGEX =
+  /<((?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*))[^>]*>/gi;
 
 /**
  * Comprehensive URL regex pattern
@@ -50,14 +51,16 @@ export const SLACK_FORMATTED_URL_REGEX = /<((?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-
  * Handles various TLDs and subdomains
  * This is the preferred pattern for all URL matching in the codebase
  */
-export const EXTENDED_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+export const EXTENDED_URL_REGEX =
+  /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
 
 /**
  * X/Twitter URL regex pattern
- * Matches URLs from twitter.com or x.com domains
+ * Matches URLs from twitter.com, x.com, fxtwitter.com, and vxtwitter.com domains
  * Uses word boundaries to ensure exact domain matching
  */
-export const X_TWITTER_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?\b(twitter\.com|x\.com|fxtwitter\.com|ios\.horse)\b(?:\/[^\s]*)?/gi;
+export const X_TWITTER_URL_REGEX =
+  /(?:https?:\/\/)?(?:www\.)?\b(twitter\.com|x\.com|fxtwitter\.com|vxtwitter\.com)\b(?:\/[^\s]*)?/gi;
 
 // ============================
 // KARMA PATTERNS
@@ -98,7 +101,7 @@ export function createKarmaQueryRegex(botId: string | undefined): RegExp {
   const pattern = botId
     ? `<@${botId}(?:\\|[^>]+)?>\\s+karma\\s+<@([A-Z0-9]+)(?:\\|[^>]+)?>`
     : `<@[A-Z0-9]+(?:\\|[^>]+)?>\\s+karma\\s+<@([A-Z0-9]+)(?:\\|[^>]+)?>`;
-  
+
   return new RegExp(pattern, 'i');
 }
 
@@ -111,7 +114,7 @@ export function createLeaderboardRegex(botId: string | undefined): RegExp {
   const pattern = botId
     ? `<@${botId}(?:\\|[^>]+)?>\\s+leaderboard`
     : `<@[A-Z0-9]+(?:\\|[^>]+)?>\\s+leaderboard`;
-  
+
   return new RegExp(pattern, 'i');
 }
 
