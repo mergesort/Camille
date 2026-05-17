@@ -103,21 +103,21 @@ describe('X/Twitter Transformer Module', () => {
       expect(result.transformedLinks).toContain('https://xcancel.com/profile/user2');
     });
 
-    test('should handle ios.horse links correctly', async () => {
+    test('should handle fxtwitter.com links correctly', async () => {
       const result = await processXLinks(
-        'Check this link: https://ios.horse/profile/mergesort',
+        'Check this link: https://fxtwitter.com/profile/someone_else',
         mockLogger
       );
 
       expect(result.hasXLinks).toBe(true);
       expect(result.originalLinks).toHaveLength(1);
       expect(result.transformedLinks).toHaveLength(1);
-      expect(result.transformedLinks[0]).toBe('https://xcancel.com/profile/mergesort');
+      expect(result.transformedLinks[0]).toBe('https://xcancel.com/profile/someone_else');
     });
 
-    test('should handle fxtwitter.com links correctly', async () => {
+    test('should handle vxtwitter.com links correctly', async () => {
       const result = await processXLinks(
-        'Check this link: https://fxtwitter.com/profile/someone_else',
+        'Check this link: https://vxtwitter.com/profile/someone_else',
         mockLogger
       );
 
@@ -140,7 +140,7 @@ describe('X/Twitter Transformer Module', () => {
 
     test('should ignore bare X/Twitter domains', async () => {
       const result = await processXLinks(
-        'Mentioning x.com, ios.horse, fxtwitter.com, and https://x.com/ should not trigger a reply',
+        'Mentioning x.com, fxtwitter.com, vxtwitter.com, and https://x.com/ should not trigger a reply',
         mockLogger
       );
 
@@ -230,21 +230,21 @@ describe('X/Twitter Transformer Module', () => {
   });
 
   describe('Regex testing', () => {
-    test('regex should match x.com, twitter.com, fxtwitter.com, and ios.horse URLs', () => {
+    test('regex should match x.com, twitter.com, fxtwitter.com, and vxtwitter.com URLs', () => {
       // Simple message with X/Twitter links
       const message =
-        'Check these: https://x.com and also https://twitter.com and x.com and ios.horse and fxtwitter.com';
+        'Check these: https://x.com and also https://twitter.com and x.com and fxtwitter.com and vxtwitter.com';
 
       // Use the regex to find matches
       const matches = [...message.matchAll(new RegExp(X_TWITTER_URL_REGEX))].map((m) => m[0]);
 
-      // Verify that we found the three URLs
+      // Verify that we found the URLs
       expect(matches).toHaveLength(5);
       expect(matches).toContain('https://x.com');
       expect(matches).toContain('https://twitter.com');
       expect(matches).toContain('x.com');
-      expect(matches).toContain('ios.horse');
       expect(matches).toContain('fxtwitter.com');
+      expect(matches).toContain('vxtwitter.com');
     });
 
     test('should not match domains that contain x.com or twitter.com as substrings', () => {
