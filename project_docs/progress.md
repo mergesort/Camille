@@ -89,16 +89,13 @@
 - Updated help documentation to include Autoresponders section:
   - Added documentation for greeting responses
   - Added documentation for inclusive language suggestions
-  - Added documentation for X/Twitter link transformation
 
 ### Autoresponders
 - Implemented greeting responses with wave emoji reactions
 - Added inclusive language suggestions for phrases like "hey guys"
-- Created X/Twitter link transformer for account-free access
 - Added comprehensive test coverage for all autoresponder features
 - Implemented auto-moderation features:
   - Inclusive language suggestions to promote a welcoming environment
-  - Content transformation for better accessibility (X/Twitter links)
   - Real-time message monitoring and response
 
 ## Testing Framework
