@@ -71,9 +71,6 @@ Provides automatic responses and content moderation for common messages and patt
   - Automatically detects non-inclusive language patterns like "hey guys"
   - Provides gentle suggestions for more inclusive alternatives
   - Promotes a welcoming community environment
-- **Content Transformation**:
-  - Automatically provides account-free versions of shared X/Twitter links
-  - Improves content accessibility for all users
 - **Real-time Monitoring**:
   - Monitors messages in real-time for moderation patterns
   - Provides immediate, constructive feedback
