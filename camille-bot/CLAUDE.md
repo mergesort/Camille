@@ -21,7 +21,6 @@ src/
 ├── help/               # Help command system
 ├── karma/              # Karma point system
 ├── link-tracking/      # Cross-channel link tracking
-├── x-transformer/      # X/Twitter link transformation
 ├── shared/             # Shared utilities and types
 │   ├── config/         # Configuration management
 │   ├── logging/        # Logging utilities

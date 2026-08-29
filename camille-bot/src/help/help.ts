@@ -66,7 +66,6 @@ function formatHelpMessage(): string {
 *Autoresponders*
 • When you say "hello" or similar greetings to @camille, she'll respond with a friendly greeting and wave
 • When someone uses "hey guys" or similar phrases, Camille will kindly suggest more inclusive alternatives
-• When someone shares a Twitter/X link, Camille will provide a version that doesn't require an account
 
 *Lost Hours Tracking*
 • \`#lost-hours +N\` - Add N hours to the lost hours counter
@@ -83,4 +82,4 @@ function formatHelpMessage(): string {
 • Multiple karma modification operations in one message are supported (for different users)
 • If you want to give karma privately, you can run Camille's commands in your DM with Camille
 `.trim();
-} 
+}

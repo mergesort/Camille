@@ -54,14 +54,6 @@ export const SLACK_FORMATTED_URL_REGEX =
 export const EXTENDED_URL_REGEX =
   /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,63}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
 
-/**
- * X/Twitter URL regex pattern
- * Matches URLs from twitter.com, x.com, fxtwitter.com, and vxtwitter.com domains
- * Uses word boundaries to ensure exact domain matching
- */
-export const X_TWITTER_URL_REGEX =
-  /(?:https?:\/\/)?(?:www\.)?\b(twitter\.com|x\.com|fxtwitter\.com|vxtwitter\.com)\b(?:\/[^\s]*)?/gi;
-
 // ============================
 // KARMA PATTERNS
 // ============================

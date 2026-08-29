@@ -13,7 +13,6 @@ import { processMessageLinks, processMessageDeletion } from '../../link-tracking
 import { processHelpCommand } from '../../help';
 import { processGreeting } from '../../greetings';
 import { processMessageForAutoResponse } from '../../auto-responder/auto-responder';
-import { processXLinks } from '../../x-transformer/x-transformer';
 import { processLostHoursMessage } from '../../lost-hours';
 import { sendSlackMessage, sendSlackEphemeralMessage, addSlackReaction, sendSlackUnfurl } from './messaging';
 import { isBlueskyUrl, fetchBlueskyPost, formatUnfurl } from '../../bluesky-unfurl';
@@ -208,37 +207,6 @@ async function handleMessageEvent(
     if (!config.slackApiToken) {
       logger.error('Cannot process message: API token is missing');
       return;
-    }
-    
-    // Process for X/Twitter links
-    const xLinksResult = await processXLinks(
-      event.text,
-      logger
-    );
-    
-    // If there are X/Twitter links, transform and reply with xcancel links
-    if (xLinksResult.hasXLinks && xLinksResult.transformedLinks.length > 0) {
-      // Create a message with the transformed links
-      let responseText = '';
-      
-      if (xLinksResult.transformedLinks.length === 1) {
-        responseText = `Here's a link that doesn't require a Twitter/X account: ${xLinksResult.transformedLinks[0]}`;
-      } else {
-        responseText = `Here are links that don't require a Twitter/X account:\n${xLinksResult.transformedLinks.join('\n')}`;
-      }
-      
-      await sendSlackMessage({
-        channel: event.channel,
-        text: responseText,
-        thread_ts: event.thread_ts || event.ts,
-        token: config.slackApiToken,
-        unfurl_links: false // Prevent links from unfurling
-      });
-      
-      logger.debug('Sent xcancel links response', {
-        channel: event.channel,
-        responsePreview: responseText.substring(0, 50)
-      });
     }
     
     // Process for help command
